@@ -1,0 +1,182 @@
+# Repo Health Check - 健康评分配置
+# 版本: 1.0
+# 驱动 SDD，评分规则与代码分离
+
+version: "1.0"
+
+badge_levels:
+  A:
+    min: 80
+    label: "A"
+    color: "brightgreen"
+    description: "健康"
+  B:
+    min: 60
+    label: "B"
+    color: "yellow"
+    description: "良好"
+  C:
+    min: 40
+    label: "C"
+    color: "orange"
+    description: "需改善"
+  D:
+    min: 0
+    label: "D"
+    color: "red"
+    description: "差"
+
+dimensions:
+  code_quality:
+    name: "代码质量"
+    weight: 0.20
+    description: "圈复杂度（多语言 radon+lizard）、代码重复率（启发式）、代码行数合理性"
+    formula: weighted_average
+    thresholds:
+      excellent: 90
+      good: 75
+      warning: 60
+      critical: 40
+    sub_metrics:
+      - name: "圈复杂度"
+        key: "cyclomatic_complexity"
+        weight: 0.40
+        analyzer: "radon+lizard+eslint"
+      - name: "代码重复率"
+        key: "duplication_rate"
+        weight: 0.35
+        analyzer: "lizard+radon+eslint heuristic"
+      - name: "文件行数分布"
+        key: "file_size_distribution"
+        weight: 0.25
+        analyzer: "custom"
+
+  test_coverage:
+    name: "测试覆盖"
+    weight: 0.20
+    description: "测试覆盖率、测试文件比例、测试框架健全性"
+    formula: weighted_average
+    thresholds:
+      excellent: 85
+      good: 70
+      warning: 50
+      critical: 30
+    sub_metrics:
+      - name: "测试覆盖率"
+        key: "coverage_percentage"
+        weight: 0.50
+        analyzer: "custom"
+      - name: "测试文件比例"
+        key: "test_file_ratio"
+        weight: 0.30
+        analyzer: "custom"
+      - name: "测试框架检测"
+        key: "test_framework_detected"
+        weight: 0.20
+        analyzer: "custom"
+
+  architecture:
+    name: "架构健康"
+    weight: 0.15
+    description: "模块耦合度、包结构合理性、设计模式使用"
+    formula: weighted_average
+    thresholds:
+      excellent: 85
+      good: 70
+      warning: 55
+      critical: 35
+    sub_metrics:
+      - name: "模块耦合度"
+        key: "module_coupling"
+        weight: 0.40
+        analyzer: "custom"
+      - name: "包结构评分"
+        key: "package_structure"
+        weight: 0.35
+        analyzer: "custom"
+      - name: "依赖方向"
+        key: "dependency_direction"
+        weight: 0.25
+        analyzer: "custom"
+
+  documentation:
+    name: "文档完整"
+    weight: 0.15
+    description: "README 质量、API 文档、注释覆盖率"
+    formula: weighted_average
+    thresholds:
+      excellent: 90
+      good: 75
+      warning: 55
+      critical: 30
+    sub_metrics:
+      - name: "README 质量"
+        key: "readme_quality"
+        weight: 0.35
+        analyzer: "ai"
+      - name: "API 文档"
+        key: "api_documentation"
+        weight: 0.35
+        analyzer: "custom"
+      - name: "注释覆盖率"
+        key: "comment_ratio"
+        weight: 0.30
+        analyzer: "custom"
+
+  dependency_security:
+    name: "依赖安全"
+    weight: 0.15
+    description: "已知漏洞、依赖更新度、锁定文件存在性"
+    formula: weighted_average
+    thresholds:
+      excellent: 95
+      good: 80
+      warning: 60
+      critical: 40
+    sub_metrics:
+      - name: "已知漏洞数"
+        key: "known_vulnerabilities"
+        weight: 0.40
+        analyzer: "bandit"
+      - name: "依赖新鲜度"
+        key: "dependency_freshness"
+        weight: 0.30
+        analyzer: "pip-audit"
+      - name: "锁定文件检查"
+        key: "lockfile_present"
+        weight: 0.30
+        analyzer: "custom"
+
+  engineering:
+    name: "工程规范"
+    weight: 0.15
+    description: "CI/CD 配置、Linter 配置、Git 规范、许可证"
+    formula: weighted_average
+    thresholds:
+      excellent: 90
+      good: 75
+      warning: 55
+      critical: 30
+    sub_metrics:
+      - name: "CI/CD 配置"
+        key: "cicd_config"
+        weight: 0.30
+        analyzer: "custom"
+      - name: "Linter 配置"
+        key: "linter_config"
+        weight: 0.25
+        analyzer: "custom"
+      - name: "Git 规范"
+        key: "git_hygiene"
+        weight: 0.25
+        analyzer: "custom"
+      - name: "许可证"
+        key: "license_present"
+        weight: 0.20
+        analyzer: "custom"
+
+scoring:
+  health_score_formula: "sum(dimension.score * dimension.weight for dimension in dimensions)"
+  health_score_round: 2
+  max_score: 100
+  min_score: 0

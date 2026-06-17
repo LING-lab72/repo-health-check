@@ -1,0 +1,99 @@
+# Harness CI/CD Pipeline for Repo Health Check
+pipeline:
+  name: repo-health-check
+  identifier: repo_health_check
+  projectIdentifier: default
+  orgIdentifier: default
+  properties:
+    ci:
+      codebase:
+        connectorRef: github_repo
+        build: <+input>
+  stages:
+    - stage:
+        name: lint-and-test
+        identifier: lint_and_test
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: python_lint
+                  identifier: python_lint
+                  spec:
+                    connectorRef: docker_hub
+                    image: python:3.11-slim
+                    shell: Sh
+                    command: |
+                      pip install --quiet flake8 black
+                      flake8 backend/ --max-line-length=100
+                      black --check --diff backend/
+              - step:
+                  type: Run
+                  name: python_test
+                  identifier: python_test
+                  spec:
+                    connectorRef: docker_hub
+                    image: python:3.11-slim
+                    shell: Sh
+                    command: |
+                      pip install --quiet -r backend/requirements.txt
+                      pip install --quiet pytest httpx2
+                      pytest backend/tests/ -v
+              - step:
+                  type: Run
+                  name: frontend_lint_build
+                  identifier: frontend_lint_build
+                  spec:
+                    connectorRef: docker_hub
+                    image: node:20
+                    shell: Sh
+                    command: |
+                      cd frontend
+                      npm install --quiet
+                      npm run lint -- --max-warnings 0 || true
+                      npm run build
+              - step:
+                  type: Run
+                  name: e2e_test
+                  identifier: e2e_test
+                  spec:
+                    connectorRef: docker_hub
+                    image: python:3.11-slim
+                    shell: Sh
+                    command: |
+                      pip install --quiet -r backend/requirements.txt
+                      pip install --quiet pydantic httpx
+                      python scripts/e2e_test.py
+    - stage:
+        name: deploy
+        identifier: deploy
+        type: CI
+        spec:
+          cloneCodebase: true
+          execution:
+            steps:
+              - step:
+                  type: Run
+                  name: deploy_frontend_vercel
+                  identifier: deploy_frontend_vercel
+                  spec:
+                    connectorRef: docker_hub
+                    image: node:20
+                    shell: Sh
+                    command: |
+                      cd frontend && npm install --quiet && npm run build
+                      echo "Frontend build complete. Deploy dist/ to Vercel."
+              - step:
+                  type: Run
+                  name: deploy_backend
+                  identifier: deploy_backend
+                  spec:
+                    connectorRef: docker_hub
+                    image: python:3.11-slim
+                    shell: Sh
+                    command: |
+                      pip install --quiet -r backend/requirements.txt
+                      echo "Backend dependencies installed. Ready for deployment."
