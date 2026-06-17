@@ -2,7 +2,7 @@
 
 ## Purpose
 
-前端接入真实后端 API，展示分析结果：ECharts 雷达图、六维分数条、AI 诊断建议、问题列表、Badge 嵌入代码。
+前端接入真实后端 API，展示分析结果：ECharts 雷达图、六维分数条、AI 诊断建议、问题列表、Badge 嵌入代码。首页 Hero 区域使用 CurvedLoop 弧形滚动标题动画。
 
 ## Requirements
 
@@ -46,7 +46,3 @@
 #### Scenario: 响应式字体
 - **WHEN** 视口宽度 < 768px
 - **THEN** CurvedLoop 字体缩小为 2.4rem；视口 < 480px 时缩小为 1.8rem
-
-### Requirement: HomePage 交互
-
-系统 SHALL 在 HomePage 实现 URL 格式前端校验、loading 动画、错误 toast。

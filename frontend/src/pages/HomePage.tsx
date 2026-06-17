@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getApiKey, setApiKey, clearApiKey } from '../api';
+import GlassCard from '../components/GlassCard';
+import CurvedLoop from '../components/CurvedLoop';
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/;
 
-// GitHub 高分项目推荐（精选体积适中、分析速度快的项目）
 const RECOMMENDED_REPOS = [
   { owner: 'vuejs', repo: 'vue', stars: '212K', lang: 'TypeScript', color: '#3178c6', desc: '渐进式前端框架' },
   { owner: 'facebook', repo: 'react', stars: '236K', lang: 'JavaScript', color: '#f7df1e', desc: '声明式UI库' },
@@ -18,6 +19,13 @@ const RECOMMENDED_REPOS = [
   { owner: 'nestjs', repo: 'nest', stars: '71K', lang: 'TypeScript', color: '#3178c6', desc: '企业级Node.js框架' },
   { owner: 'remix-run', repo: 'react-router', stars: '54K', lang: 'TypeScript', color: '#3178c6', desc: 'React路由库' },
   { owner: 'tiangolo', repo: 'fastapi', stars: '84K', lang: 'Python', color: '#3572A5', desc: '高性能Python API' },
+];
+
+const FEATURES = [
+  { icon: '📊', label: '六维雷达图', color: 'var(--accent)' },
+  { icon: '🤖', label: 'AI 诊断', color: '#14b8a6' },
+  { icon: '🏆', label: '排行榜', color: '#fbbf24' },
+  { icon: '🏷️', label: '徽章生成', color: '#8b5cf6' },
 ];
 
 export default function HomePage() {
@@ -63,14 +71,23 @@ export default function HomePage() {
 
   return (
     <div className="page-container home-page fade-in">
-      <div className="hero">
-        <h1 className="hero-title">Repo Health Check</h1>
+      {/* Hero */}
+      <div className="hero stagger-children">
+        <CurvedLoop
+          marqueeText="Repo ✦ Health ✦ Check ✦"
+          speed={2}
+          curveAmount={280}
+          direction="left"
+          interactive={true}
+          className="curved-loop-hero-text"
+        />
         <p className="hero-subtitle">
           输入 GitHub 仓库 URL，6 个维度全面体检，AI 智能诊断，生成健康 Badge
         </p>
       </div>
 
-      <div className="card" style={{ maxWidth: 560, margin: '0 auto' }}>
+      {/* Input Card */}
+      <GlassCard tilt style={{ maxWidth: 580, margin: '0 auto' }}>
         <form onSubmit={handleSubmit}>
           <div style={{ position: 'relative', marginBottom: 16 }}>
             <input
@@ -94,15 +111,15 @@ export default function HomePage() {
 
           <button
             type="submit"
-            className="btn btn-primary"
+            className="btn"
             style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 8 }}
           >
-            🔍 开始体检
+            开始体检
           </button>
         </form>
 
         {/* API Key Configuration */}
-        <div style={{ marginTop: 20, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+        <div style={{ marginTop: 24, borderTop: '1px solid var(--border)', paddingTop: 16 }}>
           <div
             onClick={() => setShowKeyConfig(!showKeyConfig)}
             style={{
@@ -116,9 +133,9 @@ export default function HomePage() {
             }}
           >
             <span>
-              🤖 AI 诊断配置
+              AI 诊断配置
               {hasKey && (
-                <span style={{ color: 'var(--green)', marginLeft: 8, fontSize: 12 }}>已配置</span>
+                <span style={{ color: 'var(--accent-secondary)', marginLeft: 8, fontSize: 12 }}>已配置</span>
               )}
             </span>
             <span style={{ transform: showKeyConfig ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
@@ -137,7 +154,7 @@ export default function HomePage() {
                   value={keyInput}
                   onChange={(e) => setKeyInput(e.target.value)}
                   className="input"
-                  style={{ flex: 1, fontSize: 13, padding: '10px 12px' }}
+                  style={{ flex: 1, fontSize: 13, padding: '10px 14px' }}
                 />
                 <button
                   type="button"
@@ -145,7 +162,7 @@ export default function HomePage() {
                   onClick={handleSaveKey}
                   style={{ whiteSpace: 'nowrap' }}
                 >
-                  {keySaved ? '✓ 已保存' : '保存'}
+                  {keySaved ? '已保存' : '保存'}
                 </button>
               </div>
               {hasKey && (
@@ -156,32 +173,25 @@ export default function HomePage() {
             </div>
           )}
         </div>
-      </div>
+      </GlassCard>
 
-      {/* Recommended repos - GitHub 高分项目 */}
-      <div style={{ maxWidth: 560, margin: '24px auto 0' }}>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 10, textAlign: 'center' }}>
+      {/* Recommended repos */}
+      <div style={{ maxWidth: 580, margin: '28px auto 0' }}>
+        <p className="section-title" style={{ textAlign: 'center' }}>
           GitHub 高分项目推荐
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+        <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12 }}>
           {RECOMMENDED_REPOS.map((item) => {
             const fullUrl = `https://github.com/${item.owner}/${item.repo}`;
             return (
-              <button
+              <GlassCard
                 key={fullUrl}
-                className="card card-hover"
-                onClick={() => {
-                  setUrl(fullUrl);
-                }}
+                tilt
+                onClick={() => setUrl(fullUrl)}
                 style={{
-                  padding: '12px 14px',
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-card)',
-                  color: 'var(--text)',
+                  padding: '14px 16px',
                   cursor: 'pointer',
-                  borderRadius: 10,
                   fontSize: 13,
-                  fontFamily: 'inherit',
                   textAlign: 'left',
                   display: 'flex',
                   alignItems: 'center',
@@ -194,9 +204,9 @@ export default function HomePage() {
                     {item.owner}/{item.repo}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
-                    ⭐ {item.stars}
+                    {item.stars} stars
                   </div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {item.desc}
                   </div>
                 </div>
@@ -206,30 +216,27 @@ export default function HomePage() {
                     color: '#fff',
                     fontSize: 10,
                     fontWeight: 600,
-                    padding: '2px 6px',
-                    borderRadius: 4,
+                    padding: '2px 8px',
+                    borderRadius: 6,
                     flexShrink: 0,
                   }}
                 >
                   {item.lang}
                 </span>
-              </button>
+              </GlassCard>
             );
           })}
         </div>
       </div>
 
       {/* Feature highlights */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16, maxWidth: 560, margin: '32px auto 0' }}>
-        {[
-          { icon: '📊', label: '六维雷达图' },
-          { icon: '🤖', label: 'AI 诊断' },
-          { icon: '🏆', label: '排行榜' },
-          { icon: '🏷️', label: '徽章生成' },
-        ].map((f) => (
-          <div key={f.label} className="card card-hover" style={{ textAlign: 'center', padding: 20 }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>{f.icon}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{f.label}</div>
+      <div className="stagger-children" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 16, maxWidth: 580, margin: '36px auto 0' }}>
+        {FEATURES.map((f) => (
+          <div key={f.label} className="feature-card" style={{ textAlign: 'center' }}>
+            <div className="feature-icon" style={{ background: f.color, color: '#fff' }}>
+              {f.icon}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{f.label}</div>
           </div>
         ))}
       </div>
