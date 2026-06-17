@@ -4,6 +4,8 @@ import { useApp } from '../context/AppContext';
 import RadarChart from '../components/RadarChart';
 import ScoreBar from '../components/ScoreBar';
 import HistoryChart from '../components/HistoryChart';
+import AnimatedCounter from '../components/AnimatedCounter';
+import GlassCard from '../components/GlassCard';
 import { API_BASE, sha256Prefix, getApiKey } from '../api';
 
 const SEVERITY_COLORS: Record<string, string> = {
@@ -26,7 +28,7 @@ export default function ReportPage() {
   const [badgeHash, setBadgeHash] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
 
-  // ── Primary analysis trigger ──────────────────────────────────
+  // ── Primary analysis trigger ──
 
   useEffect(() => {
     if (!repoUrl) return;
@@ -39,7 +41,6 @@ export default function ReportPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 180000);
 
-      // If user has configured API key, enable AI diagnosis from the start
       const hasKey = !!getApiKey();
 
       try {
@@ -50,7 +51,7 @@ export default function ReportPage() {
           body: JSON.stringify({
             repo_url: repoUrl,
             force_sync: true,
-            skip_ai: !hasKey, // skip AI only when no key configured
+            skip_ai: !hasKey,
           }),
         });
         clearTimeout(timeoutId);
@@ -77,7 +78,7 @@ export default function ReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [repoUrl]);
 
-  // ── Fetch AI diagnosis on demand (when skipped initially) ─────
+  // ── Fetch AI diagnosis on demand ──
 
   const handleFetchDiagnosis = async () => {
     setAiLoading(true);
@@ -92,12 +93,12 @@ export default function ReportPage() {
         dispatch({ type: 'ANALYSIS_SUCCESS', payload: json.data });
       }
     } catch {
-      // silent fail — keep current result
+      // silent fail
     }
     setAiLoading(false);
   };
 
-  // ── History ──────────────────────────────────────────────────
+  // ── History ──
 
   useEffect(() => {
     if (!repoUrl || state.status !== 'success') return;
@@ -107,7 +108,7 @@ export default function ReportPage() {
       .catch(() => {});
   }, [repoUrl, state.status]);
 
-  // ── Badge hash ───────────────────────────────────────────────
+  // ── Badge hash ──
 
   useEffect(() => {
     if (repoUrl) {
@@ -125,7 +126,7 @@ export default function ReportPage() {
     });
   };
 
-  // ── Loading ──────────────────────────────────────────────────
+  // ── Loading ──
 
   if (state.status === 'loading') {
     return (
@@ -138,23 +139,23 @@ export default function ReportPage() {
     );
   }
 
-  // ── Error ────────────────────────────────────────────────────
+  // ── Error ──
 
   if (state.status === 'error') {
     const errMsg = state.error || '未知错误';
     return (
       <div className="page-container fade-in">
-        <button className="btn-back" onClick={() => navigate('/')}>&larr; 返回</button>
-        <div className="card" style={{ textAlign: 'center', padding: 48, marginTop: 24 }}>
-          <p style={{ color: 'var(--red)', fontSize: 18, marginBottom: 12 }}>分析失败</p>
+        <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
+        <GlassCard style={{ textAlign: 'center', padding: 48, marginTop: 24 }}>
+          <p style={{ color: 'var(--red)', fontSize: 18, fontWeight: 700, marginBottom: 12 }}>分析失败</p>
           <p style={{ color: 'var(--text-secondary)', marginBottom: 16 }}>{errMsg}</p>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>重新分析</button>
-        </div>
+          <button className="btn" onClick={() => navigate('/')}>重新分析</button>
+        </GlassCard>
       </div>
     );
   }
 
-  // ── Data ready ───────────────────────────────────────────────
+  // ── Data ready ──
 
   const data = state.analysisResult;
   if (!data) return null;
@@ -170,18 +171,19 @@ export default function ReportPage() {
   );
 
   return (
-    <div className="page-container fade-in">
-      <button className="btn-back" onClick={() => navigate('/')}>&larr; 返回</button>
+    <div className="page-container fade-in stagger-children">
+      <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
-        <h1>体检报告</h1>
+      {/* Header with animated score */}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h1 className="text-gradient-purple">体检报告</h1>
         <span className="badge-glow" style={{ background: data.badge_color === 'lightgrey' ? '#9f9f9f' : data.badge_color }}>
           {data.badge_level}
         </span>
-        <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>
-          {data.health_score}/100
+        <span className="score-number text-gradient">
+          <AnimatedCounter target={data.health_score} decimals={0} />
         </span>
+        <span className="score-label">/100</span>
         <button
           onClick={() => {
             const link = document.createElement('a');
@@ -200,19 +202,19 @@ export default function ReportPage() {
       <p className="repo-url">{repoUrl}</p>
 
       {/* Radar Chart */}
-      <div className="card" style={{ marginBottom: 24 }}>
-        <h2 className="section-title">六维度雷达图</h2>
+      <GlassCard style={{ marginBottom: 28 }}>
+        <h2 className="section-title text-gradient-purple">六维度雷达图</h2>
         <RadarChart dimensions={radarData} />
-      </div>
+      </GlassCard>
 
       {/* Score Bars */}
       {dimensions.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
+        <GlassCard style={{ marginBottom: 28 }}>
           <h2 className="section-title">各维度详情</h2>
           {dimensions.map((d: { dimension: string; score: number }) => (
             <ScoreBar key={d.dimension} label={d.dimension} score={d.score} />
           ))}
-        </div>
+        </GlassCard>
       )}
 
       {/* History Chart */}
@@ -220,40 +222,39 @@ export default function ReportPage() {
 
       {/* AI Diagnosis */}
       {diagnosis.length === 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
+        <GlassCard style={{ marginBottom: 28 }}>
           <h2 className="section-title">AI 诊断建议</h2>
           <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
             {getApiKey()
               ? 'AI 诊断已包含在本次分析中（无建议）'
               : '首次分析跳过了 AI 诊断。配置 API Key 后点击获取：'}
           </p>
-          <button className="btn btn-primary" onClick={handleFetchDiagnosis}>
-            🤖 获取 AI 诊断
+          <button className="btn" onClick={handleFetchDiagnosis}>
+            获取 AI 诊断
           </button>
           {aiLoading && <div className="spinner" style={{ marginTop: 12 }} />}
-        </div>
+        </GlassCard>
       )}
       {diagnosis.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
-          <h2 className="section-title">AI 诊断建议</h2>
+        <GlassCard style={{ marginBottom: 28 }}>
+          <h2 className="section-title text-gradient-purple">AI 诊断建议</h2>
           {diagnosis.map((s: {
             advice: string; severity: string; estimated_hours: number;
             confidence: number; need_human_review: boolean;
           }, i: number) => (
             <div
               key={i}
-              className="card card-hover"
+              className="diagnosis-card glass-card"
               style={{
                 marginBottom: 12,
-                padding: 16,
-                borderLeft: `4px solid ${SEVERITY_COLORS[s.severity] || 'var(--text-secondary)'}`,
+                padding: '16px 16px 16px 20px',
               }}
             >
               <p style={{ marginBottom: 8 }}>{s.advice}</p>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 12 }}>
                 <span className="tag" style={{ background: SEVERITY_COLORS[s.severity] }}>{s.severity}</span>
-                <span style={{ color: 'var(--text-secondary)' }}>&#8987; ~{s.estimated_hours}h</span>
-                <span style={{ color: s.confidence >= 70 ? 'var(--green)' : 'var(--yellow)' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>~{s.estimated_hours}h</span>
+                <span style={{ color: s.confidence >= 70 ? 'var(--accent-secondary)' : 'var(--yellow)' }}>
                   置信度 {s.confidence}%
                 </span>
                 {s.need_human_review && (
@@ -262,23 +263,23 @@ export default function ReportPage() {
               </div>
             </div>
           ))}
-        </div>
+        </GlassCard>
       )}
 
       {/* Issues */}
       {allIssues.length > 0 && (
-        <div className="card" style={{ marginBottom: 24 }}>
+        <GlassCard style={{ marginBottom: 28 }}>
           <h2 className="section-title">问题列表 ({allIssues.length})</h2>
           {allIssues.slice(0, 20).map((issue: string, i: number) => (
-            <div key={i} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-secondary)' }}>
+            <div key={i} style={{ padding: '8px 0', borderBottom: '1px solid var(--border)', fontSize: 13, color: 'var(--text-secondary)' }}>
               {issue}
             </div>
           ))}
-        </div>
+        </GlassCard>
       )}
 
       {/* Badge Embed */}
-      <div className="card" style={{ marginBottom: 24 }}>
+      <GlassCard style={{ marginBottom: 28 }}>
         <h2 className="section-title">嵌入 Badge</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
           将以下 Markdown 代码添加到你的 README.md 中，实时展示健康状态：
@@ -288,22 +289,28 @@ export default function ReportPage() {
             src={badgeImgUrl}
             alt="health badge"
             style={{ height: 20, borderRadius: 3 }}
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
           <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>← 预览</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <code className="code-block">{badgeMd}</code>
-          <button className="btn btn-sm" onClick={copyBadge}>
+        {/* macOS-style code block header */}
+        <div style={{ background: 'var(--bg-surface)', borderRadius: '12px 12px 0 0', border: '1px solid var(--border)', borderBottom: 'none' }}>
+          <div className="code-block-header">
+            <span className="code-dot code-dot-red" />
+            <span className="code-dot code-dot-yellow" />
+            <span className="code-dot code-dot-green" />
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', background: 'var(--bg-surface)', borderRadius: '0 0 12px 12px', border: '1px solid var(--border)', borderTop: 'none', padding: 12 }}>
+          <code className="code-block" style={{ border: 'none', borderRadius: 0, background: 'transparent', padding: 0 }}>{badgeMd}</code>
+          <button className="btn btn-sm" onClick={copyBadge} style={{ alignSelf: 'center' }}>
             {copied ? '已复制' : '复制'}
           </button>
         </div>
-      </div>
+      </GlassCard>
 
       {/* Share Result */}
-      <div className="card">
+      <GlassCard>
         <h2 className="section-title">分享结果</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 12 }}>
           复制此链接分享给他人，打开后自动触发分析
@@ -322,7 +329,7 @@ export default function ReportPage() {
             {shareCopied ? '链接已复制' : '复制链接'}
           </button>
         </div>
-      </div>
+      </GlassCard>
     </div>
   );
 }

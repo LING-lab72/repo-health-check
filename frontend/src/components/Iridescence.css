@@ -1,0 +1,23 @@
+.iridescence-container {
+  width: 100%;
+  height: 100%;
+}
+
+.iridescence-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  opacity: 0.5;
+  /* Allow mouse tracking via global window events, but don't block page clicks */
+  pointer-events: none;
+}
+
+.iridescence-bg canvas {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  display: block;
+}

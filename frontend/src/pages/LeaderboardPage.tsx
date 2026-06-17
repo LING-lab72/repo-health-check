@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE } from '../api';
+import AnimatedCounter from '../components/AnimatedCounter';
 
 interface LeaderboardItem {
   repo_url: string;
@@ -11,8 +12,6 @@ interface LeaderboardItem {
   _votes?: number;
   _trend?: 'up' | 'down' | 'same' | 'new';
 }
-
-const MEDALS: Record<number, string> = { 1: '🥇', 2: '🥈', 3: '🥉' };
 
 export default function LeaderboardPage() {
   const navigate = useNavigate();
@@ -33,7 +32,7 @@ export default function LeaderboardPage() {
   const [votingRepo, setVotingRepo] = useState<string | null>(null);
 
   const handleVote = async (repoUrl: string) => {
-    if (votingRepo) return; // prevent double click
+    if (votingRepo) return;
     setVoteError('');
     setVotingRepo(repoUrl);
     try {
@@ -64,11 +63,11 @@ export default function LeaderboardPage() {
   const topRepo = items[0] as LeaderboardItem | undefined;
 
   return (
-    <div className="page-container fade-in">
-      <button className="btn-back" onClick={() => navigate('/')}>&larr; 返回</button>
+    <div className="page-container fade-in stagger-children">
+      <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
 
-      <h1>仓库健康排行榜</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
+      <h1 className="text-gradient-purple">仓库健康排行榜</h1>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
         已分析 {items.length} 个仓库
       </p>
 
@@ -76,108 +75,89 @@ export default function LeaderboardPage() {
         <div className="error-toast" style={{ marginBottom: 16 }}>{voteError}</div>
       )}
 
-      {/* Weekly Challenge */}
+      {/* Weekly Best */}
       {topRepo && (
-        <div className="card" style={{ marginBottom: 24, background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(168,122,250,0.1))', border: '1px solid rgba(99,102,241,0.3)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-            <div>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--accent)' }}>🏆 本周最健康仓库</span>
-              <p style={{ fontSize: 16, fontWeight: 700, marginTop: 4, wordBreak: 'break-all' }}>
-                {topRepo.repo_url.replace('https://github.com/', '')}
-              </p>
-            </div>
-            <span style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent)' }}>
-              {topRepo.health_score}/100
-              <span className="badge" style={{ background: topRepo.badge_color, marginLeft: 8, verticalAlign: 'super' }}>
-                {topRepo.badge_level}
-              </span>
+        <div className="lb-week-best" style={{ marginBottom: 28 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.03em' }}>本周最健康仓库</span>
+          <p style={{ fontSize: 16, fontWeight: 700, marginTop: 6, wordBreak: 'break-all' }}>
+            {topRepo.repo_url.replace('https://github.com/', '')}
+          </p>
+          <div style={{ marginTop: 8 }}>
+            <span className="score-number text-gradient">
+              <AnimatedCounter target={topRepo.health_score} />
+            </span>
+            <span className="score-label" style={{ marginLeft: 4 }}>/100</span>
+            <span className="badge" style={{ background: topRepo.badge_color, marginLeft: 12 }}>
+              {topRepo.badge_level}
             </span>
           </div>
         </div>
       )}
 
       {items.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: 48 }}>
+        <div className="glass-card" style={{ textAlign: 'center', padding: 48 }}>
           <p style={{ fontSize: 48, marginBottom: 16 }}>📭</p>
           <p style={{ color: 'var(--text-secondary)' }}>暂无排行数据，去首页分析第一个仓库吧</p>
         </div>
       ) : (
-        <div className="card" style={{ overflow: 'hidden' }}>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '50px 1fr 60px 35px 60px 60px',
-              padding: '12px 16px',
-              borderBottom: '1px solid var(--border)',
-              color: 'var(--text-secondary)',
-              fontSize: 12,
-              fontWeight: 600,
-            }}
-          >
-            <span>排名</span>
-            <span>仓库</span>
-            <span style={{ textAlign: 'right' }}>分数</span>
-            <span style={{ textAlign: 'center' }}>趋势</span>
-            <span style={{ textAlign: 'center' }}>等级</span>
-            <span style={{ textAlign: 'center' }}>👍</span>
+        <div>
+          {/* Header row */}
+          <div className="lb-row" style={{ color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, marginBottom: 8, border: 'none', background: 'transparent', backdropFilter: 'none' }}>
+            <span style={{ width: 48 }}>排名</span>
+            <span style={{ flex: 1 }}>仓库</span>
+            <span style={{ width: 60, textAlign: 'right' }}>分数</span>
+            <span style={{ width: 35, textAlign: 'center' }}>趋势</span>
+            <span style={{ width: 60, textAlign: 'center' }}>等级</span>
+            <span style={{ width: 60, textAlign: 'center' }}>投票</span>
           </div>
+
+          {/* Leader rows */}
           {items.map((item, i) => {
             const rank = i + 1;
             const repoName = item.repo_url.replace(/^https?:\/\/github\.com\//, '');
             const votes = item._votes || 0;
+            const rankClass = rank <= 3 ? `lb-rank-${rank}` : 'lb-rank-default';
 
             return (
-              <div
-                key={item.repo_url}
-                className="card-hover"
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '50px 1fr 60px 35px 60px 60px',
-                  padding: '14px 16px',
-                  borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none',
-                  alignItems: 'center',
-                }}
-              >
-                <span style={{
-                  fontSize: 18, fontWeight: 700,
-                  color: rank <= 3 ? 'var(--accent)' : 'var(--text-secondary)',
-                }}>
-                  {MEDALS[rank] || rank}
-                </span>
-                <span style={{ fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={repoName}>
+              <div key={item.repo_url} className="lb-row">
+                <div className={`lb-rank-badge ${rankClass}`}>
+                  {rank}
+                </div>
+                <span style={{ flex: 1, fontSize: 14, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={repoName}>
                   {repoName}
                 </span>
-                <span style={{ textAlign: 'right', fontWeight: 700, color: 'var(--text)' }}>
+                <span style={{ width: 60, textAlign: 'right', fontWeight: 800, fontSize: 14, fontVariantNumeric: 'tabular-nums', color: 'var(--text)' }}>
                   {item.health_score}
                 </span>
-                <span style={{ textAlign: 'center', fontSize: 13 }}>
+                <span style={{ width: 35, textAlign: 'center', fontSize: 14 }}>
                   {item._trend === 'up' && <span style={{ color: 'var(--green)' }}>↑</span>}
                   {item._trend === 'down' && <span style={{ color: 'var(--red)' }}>↓</span>}
-                  {item._trend === 'new' && <span style={{ color: 'var(--blue)', fontSize: 10, fontWeight: 600 }}>NEW</span>}
+                  {item._trend === 'new' && <span style={{ color: 'var(--blue)', fontSize: 10, fontWeight: 700, letterSpacing: '0.05em' }}>NEW</span>}
                   {item._trend === 'same' && <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                 </span>
-                <span style={{ textAlign: 'center' }}>
+                <span style={{ width: 60, textAlign: 'center' }}>
                   <span className="badge" style={{ background: item.badge_color, fontSize: 12, padding: '2px 8px' }}>
                     {item.badge_level}
                   </span>
                 </span>
-                <span style={{ textAlign: 'center' }}>
+                <span style={{ width: 60, textAlign: 'center' }}>
                   <button
                     onClick={() => handleVote(item.repo_url)}
                     disabled={votingRepo === item.repo_url}
                     style={{
                       background: 'none',
-                      border: 'none',
+                      border: '1px solid var(--border)',
                       opacity: votingRepo === item.repo_url ? 0.4 : 1,
                       cursor: 'pointer',
-                      fontSize: 16,
-                      padding: '4px 8px',
-                      borderRadius: 6,
-                      transition: 'background 0.2s',
+                      fontSize: 13,
+                      padding: '4px 10px',
+                      borderRadius: 8,
+                      transition: 'all 0.2s',
+                      color: 'var(--text-secondary)',
                     }}
                     title="点赞"
                   >
-                    👍 <span style={{ fontSize: 12, color: 'var(--text-secondary)', marginLeft: 2 }}>{votes}</span>
+                    👍 {votes}
                   </button>
                 </span>
               </div>

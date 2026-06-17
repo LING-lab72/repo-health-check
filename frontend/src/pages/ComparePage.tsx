@@ -4,6 +4,8 @@ import { API_BASE } from '../api';
 import type { AnalysisDimension } from '../context/AppContext';
 import RadarChart from '../components/RadarChart';
 import ScoreBar from '../components/ScoreBar';
+import AnimatedCounter from '../components/AnimatedCounter';
+import GlassCard from '../components/GlassCard';
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/;
 
@@ -59,15 +61,15 @@ export default function ComparePage() {
 
   return (
     <div className="page-container fade-in">
-      <button className="btn-back" onClick={() => navigate('/')}>&larr; 返回</button>
-      <h1>仓库对比</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>输入两个 GitHub 仓库 URL，并排对比健康度</p>
+      <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
+      <h1 className="text-gradient-purple">仓库对比</h1>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>输入两个 GitHub 仓库 URL，并排对比健康度</p>
 
-      <div className="card" style={{ marginBottom: 24 }}>
+      <GlassCard tilt style={{ marginBottom: 28 }}>
         <form onSubmit={handleCompare}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>仓库 A</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>仓库 A</label>
               <input
                 type="text"
                 placeholder="https://github.com/user/repo-a"
@@ -78,7 +80,7 @@ export default function ComparePage() {
               />
             </div>
             <div>
-              <label style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>仓库 B</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6, display: 'block' }}>仓库 B</label>
               <input
                 type="text"
                 placeholder="https://github.com/user/repo-b"
@@ -92,64 +94,77 @@ export default function ComparePage() {
 
           {error && <div className="error-toast" style={{ marginBottom: 16 }}>{error}</div>}
 
-          <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button type="submit" className="btn" disabled={loading} style={{ width: '100%', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: 8 }}>
             {loading ? (<><span className="spinner-sm" />分析中...</>) : '开始对比'}
           </button>
         </form>
-      </div>
+      </GlassCard>
 
       {hasResult && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Score Comparison */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 0, alignItems: 'center', marginBottom: 28 }}>
             {[resultA, resultB].map((r, i) => (
-              <div key={i} className="card" style={{ textAlign: 'center' }}>
-                <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 8 }}>仓库 {i === 0 ? 'A' : 'B'}</p>
+              <GlassCard key={i} tilt style={{ textAlign: 'center' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>仓库 {i === 0 ? 'A' : 'B'}</p>
                 <p style={{ wordBreak: 'break-all', fontSize: 12, color: 'var(--text-secondary)', marginBottom: 12 }}>
                   {r.repo_url.replace('https://github.com/', '')}
                 </p>
-                <span style={{ fontSize: 32, fontWeight: 700, color: 'var(--text)' }}>{r.health_score}</span>
-                <span className="badge" style={{ background: r.badge_color, marginLeft: 8, verticalAlign: 'super' }}>{r.badge_level}</span>
-              </div>
+                <span className="score-number text-gradient">
+                  <AnimatedCounter target={r.health_score} />
+                </span>
+                <span className="score-label" style={{ marginLeft: 4 }}>/100</span>
+                <span className="badge" style={{ background: r.badge_color, marginLeft: 12, marginTop: 8, display: 'inline-block' }}>{r.badge_level}</span>
+              </GlassCard>
             ))}
+            {/* VS divider in middle column */}
+            <div className="vs-divider">VS</div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+          {/* Radar Charts */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
             {[resultA, resultB].map((r, i) => (
-              <div key={i} className="card">
+              <GlassCard key={i}>
                 <div style={{ marginBottom: 8 }}>
-                  {i === 0 && r.health_score > resultB.health_score && <span className="tag" style={{ background: 'var(--green)', fontSize: 11 }}>🏆 领先</span>}
-                  {i === 1 && r.health_score > resultA.health_score && <span className="tag" style={{ background: 'var(--green)', fontSize: 11 }}>🏆 领先</span>}
+                  {i === 0 && r.health_score > resultB.health_score && <span className="tag" style={{ background: 'var(--accent-secondary)', fontSize: 11 }}>领先</span>}
+                  {i === 1 && r.health_score > resultA.health_score && <span className="tag" style={{ background: 'var(--accent-secondary)', fontSize: 11 }}>领先</span>}
                 </div>
                 <RadarChart dimensions={(r.dimensions || []).map((d: AnalysisDimension) => ({ name: d.dimension, score: d.score }))} />
-              </div>
+              </GlassCard>
             ))}
           </div>
 
-          <div className="card">
-            <h2 className="section-title">逐维度对比</h2>
+          {/* Dimension Comparison */}
+          <GlassCard>
+            <h2 className="section-title text-gradient-purple">逐维度对比</h2>
             {resultA.dimensions.map((dA: AnalysisDimension) => {
               const dB = resultB.dimensions?.find((d: AnalysisDimension) => d.dimension === dA.dimension);
               const diff = dB ? (dA.score - dB.score) : 0;
               const aBetter = diff > 0;
               return (
-                <div key={dA.dimension} style={{ marginBottom: 12 }}>
+                <div key={dA.dimension} style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>{dA.dimension}</span>
+                    <span style={{ fontWeight: 600 }}>{dA.dimension}</span>
                     {diff !== 0 && (
-                      <span style={{ color: aBetter ? 'var(--green)' : 'var(--red)', fontWeight: 600 }}>
+                      <span style={{ color: aBetter ? 'var(--accent-secondary)' : 'var(--red)', fontWeight: 700, fontSize: 12 }}>
                         A {aBetter ? '+' : ''}{diff.toFixed(0)}
                       </span>
                     )}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, alignItems: 'center' }}>
-                    <div style={{ textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>A: {dA.score}</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>B: {dB?.score ?? '?'}</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div>
+                      <span style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 600 }}>A: {dA.score}</span>
+                      <ScoreBar label="" score={dA.score} />
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 600 }}>B: {dB?.score ?? '?'}</span>
+                      <ScoreBar label="" score={dB?.score ?? 0} />
+                    </div>
                   </div>
-                  <ScoreBar label="" score={Math.max(dA.score, dB?.score ?? 0)} />
                 </div>
               );
             })}
-          </div>
+          </GlassCard>
         </>
       )}
     </div>

@@ -13,36 +13,34 @@ const DIM_LABELS: Record<string, string> = {
 };
 
 function getColor(score: number) {
-  if (score >= 75) return 'var(--green)';
+  if (score >= 75) return 'var(--accent-secondary)';
   if (score >= 50) return 'var(--yellow)';
   return 'var(--red)';
+}
+
+function getGradient(score: number) {
+  if (score >= 75) return 'linear-gradient(90deg, var(--accent-secondary), #06b6d4)';
+  if (score >= 50) return 'linear-gradient(90deg, var(--yellow), #fbbf24)';
+  return 'linear-gradient(90deg, var(--red), #f97316)';
 }
 
 export default function ScoreBar({ label, score }: Props) {
   const displayLabel = DIM_LABELS[label] || label;
   const color = getColor(score);
+  const gradient = getGradient(score);
 
   return (
-    <div style={{ marginBottom: 12 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{displayLabel}</span>
-        <span style={{ fontWeight: 700, color }}>{score}/100</span>
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+        <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>{displayLabel}</span>
+        <span style={{ fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>{score}/100</span>
       </div>
-      <div
-        style={{
-          height: 8,
-          borderRadius: 4,
-          background: 'rgba(148,163,184,0.15)',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="score-bar-track">
         <div
+          className="score-bar-fill"
           style={{
-            height: '100%',
             width: `${score}%`,
-            borderRadius: 4,
-            background: color,
-            transition: 'width 1s ease',
+            background: gradient,
           }}
         />
       </div>

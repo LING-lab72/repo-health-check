@@ -1,0 +1,102 @@
+.dock-outer {
+  margin: 0 0.5rem;
+  display: flex;
+  max-width: 100%;
+  align-items: center;
+}
+
+.dock-panel {
+  position: fixed;
+  bottom: 1.2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-end;
+  width: fit-content;
+  gap: 0.65rem;
+  border-radius: 1rem;
+  background-color: rgba(5, 8, 16, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  padding: 0.5rem 1rem 0.5rem;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    0 0 40px rgba(129, 140, 248, 0.06);
+  z-index: 1000;
+}
+
+.dock-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background-color: rgba(8, 14, 28, 0.8);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.dock-item:hover,
+.dock-item:focus-visible {
+  border-color: rgba(129, 140, 248, 0.45);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 0 16px rgba(129, 140, 248, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dock-item.active {
+  border-color: rgba(129, 140, 248, 0.55);
+  background-color: rgba(129, 140, 248, 0.12);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 0 20px rgba(129, 140, 248, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.dock-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(203, 213, 225, 0.75);
+  transition: color 0.2s ease;
+}
+
+.dock-item:hover .dock-icon,
+.dock-item.active .dock-icon {
+  color: #c4b5fd;
+}
+
+.dock-label {
+  position: absolute;
+  top: -2rem;
+  left: 50%;
+  width: fit-content;
+  white-space: pre;
+  border-radius: 0.375rem;
+  border: 1px solid rgba(129, 140, 248, 0.18);
+  background-color: rgba(5, 8, 16, 0.82);
+  backdrop-filter: blur(12px);
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: #c4b5fd;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Dock avatar badge for logged-in user */
+.dock-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(129, 140, 248, 0.25);
+  object-fit: cover;
+}
