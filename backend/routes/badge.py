@@ -1,6 +1,8 @@
 """Badge SVG generation endpoint."""
 from __future__ import annotations
 
+import html
+
 from fastapi import APIRouter, Response
 
 from backend.services.cache import cache
@@ -47,8 +49,12 @@ def _char_width(text: str) -> int:
 
 def _build_svg(label: str, value: str, color_hex: str) -> str:
     """Build a shields.io-style SVG badge."""
-    label_w = _char_width(label) + 10
-    value_w = _char_width(value) + 10
+    # Escape dynamic text to prevent SVG injection (XSS)
+    label_safe = html.escape(label, quote=True)
+    value_safe = html.escape(value, quote=True)
+
+    label_w = _char_width(label_safe) + 10
+    value_w = _char_width(value_safe) + 10
     total_w = label_w + value_w
 
     return SVG_TEMPLATE.format(
@@ -57,8 +63,8 @@ def _build_svg(label: str, value: str, color_hex: str) -> str:
         value_width=value_w,
         label_x=label_w // 2,
         value_x=label_w + value_w // 2,
-        label=label,
-        value=value,
+        label=label_safe,
+        value=value_safe,
         color=color_hex,
     )
 
