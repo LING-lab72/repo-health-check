@@ -17,6 +17,38 @@
 - **智能网络**：直连 → 代理 → 友好提示三级自动降级，国内环境下无需手动配置代理
 - **OpenSpec 规范化**：所有变更通过 capability 归档管理，specs 目录持续维护
 
+## 截图预览
+
+### 首页
+
+深色沉浸式界面，Iridescence WebGL 流动背景 + CurvedLoop 弧形滚动标题 + 健康度评分入口。
+
+![首页](docs/screenshots/home.png)
+
+### 分析报告
+
+六维雷达图 + AI 智能诊断建议 + 健康徽章 + 历史趋势图，毛玻璃卡片设计。
+
+![分析报告](docs/screenshots/report.png)
+
+### 排行榜
+
+多仓库健康度横向对比，支持投票和趋势标签。
+
+![排行榜](docs/screenshots/leaderboard.png)
+
+### 对比模式
+
+双仓库并排雷达图对比，直观展示差异。
+
+![对比模式](docs/screenshots/compare.png)
+
+### 关于
+
+项目介绍、SDD 开发流程和贡献方式。
+
+![关于](docs/screenshots/about.png)
+
 ## 快速开始
 
 ### 环境要求
@@ -168,6 +200,7 @@ repo-health-check/
 | cap-12 | bugfix-quality | 多处 bug 修复与质量提升 |
 | cap-13 | quality-polish | 细节打磨 |
 | cap-14 | proxy-auto-degrade-and-cache-fix | 代理自动降级 + 错误缓存不阻塞 |
+| cap-15 | curved-loop-hero-title | 首页 CurvedLoop 弧形标题集成 |
 
 ## 测试
 
