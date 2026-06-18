@@ -2,6 +2,8 @@
 
 > 一键体检你的 GitHub 仓库 — 6 维分析、雷达图、AI 诊断、健康徽章、排行榜
 
+**中文** | [English](./README_EN.md)
+
 ## 特性
 
 - **六维雷达图**：代码质量 / 测试覆盖 / 架构健康 / 文档完整 / 依赖安全 / 工程规范
@@ -60,7 +62,7 @@
 ### 本地运行
 
 ```bash
-git clone https://github.com/user/repo-health-check
+git clone https://github.com/LING-lab72/repo-health-check
 cd repo-health-check
 
 # 后端
