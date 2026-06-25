@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any
 
 from backend.ai.diagnose import ai_diagnose
-from backend.analyzer.base import AnalysisResult
 from backend.analyzer.code_quality.analyzer import CodeQualityAnalyzer
 from backend.analyzer.test_coverage.analyzer import TestCoverageAnalyzer
 from backend.analyzer.architecture.analyzer import ArchitectureAnalyzer

@@ -57,7 +57,7 @@ def _run_sync_aggregate(
     ai_api_key: str | None = None,
 ) -> dict:
     """Run aggregate() synchronously in a new event loop.
-    
+
     MUST be called from a thread (not the main async event loop).
     FastAPI automatically runs non-async endpoint handlers in a thread pool,
     which is safe for the local self-analysis route.
@@ -169,7 +169,7 @@ async def analyze_repo(req: AnalyzeRequest) -> ApiResponse[dict]:
                 code=1,
                 message="analyzing",
                 data={"task_id": task_hash, "repo_url": repo_url, "status": "pending"},
-        )
+            )
         _pending_tasks.add(task_hash)
     asyncio.create_task(_run_analysis(repo_url, req.skip_ai, req.ai_api_key))
 
@@ -180,13 +180,11 @@ async def analyze_repo(req: AnalyzeRequest) -> ApiResponse[dict]:
     )
 
 
-
 # ── Local self-analysis (sync, no clone) ──────────────────────────
 
 @router.post("/analyze/local")
 def analyze_local(skip_ai: bool = False) -> ApiResponse[dict]:
     """Analyze the Repo Health Check project itself — synchronous, no network.
-    
     This is a regular (non-async) function so FastAPI runs it in a thread pool,
     allowing safe use of asyncio.run() on Windows.
     """

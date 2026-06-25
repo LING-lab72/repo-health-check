@@ -2,34 +2,46 @@ import GlassCard from '../components/GlassCard';
 
 const TECH_STACK = [
   { label: '后端', items: 'Python 3.11+ / FastAPI / uvicorn / SQLite', align: 'left' },
-  { label: '分析引擎', items: 'radon / lizard / bandit / pip-audit / ESLint / madge', align: 'right' },
+  { label: '分析引擎', items: 'radon / lizard / bandit / pip-audit / 多语言统计', align: 'right' },
   { label: '前端', items: 'React 18 / TypeScript / Vite / ECharts / Canvas', align: 'left' },
-  { label: 'AI 诊断', items: 'DeepSeek / OpenAI，可无 Key 自动降级本地规则诊断', align: 'right' },
-  { label: '安全', items: 'HTML/SVG 转义 / Session 强密钥 / OAuth state / CORS 白名单', align: 'left' },
-  { label: '工程化', items: 'GitHub Actions / pytest / Vitest / OpenSpec', align: 'right' },
-  { label: '分享能力', items: 'HTML/PDF 报告 / Wrapped 分享卡片 / 仓库 PK 海报', align: 'left' },
-  { label: '本地体验', items: '一键启动脚本 / 缓存感知分析 / 进度条 / 分页榜单', align: 'right' },
-];
-
-const CAPABILITIES = [
-  { id: 'cap-01', name: 'project-init', desc: '前后端骨架、基础 API 与体检流程搭建' },
-  { id: 'cap-02', name: 'analysis-engine', desc: '六维度分析器、评分规则和雷达图报告' },
-  { id: 'cap-03', name: 'ai-diagnosis', desc: 'LLM 诊断与无 Key 本地规则诊断降级' },
-  { id: 'cap-04', name: 'frontend-experience', desc: '暗色玻璃拟态 UI、Dock 导航、无障碍与错误边界' },
-  { id: 'cap-05', name: 'security-hardening', desc: 'XSS 防护、Session 强密钥、OAuth state、代理头信任控制' },
-  { id: 'cap-06', name: 'persistent-storage', desc: '从 JSON 文件迁移到 SQLite，支持多进程一致性' },
-  { id: 'cap-07', name: 'async-cache', desc: '异步分析、缓存命中跳过重分析、Compare 并行化' },
-  { id: 'cap-08', name: 'report-export', desc: 'HTML/PDF 导出、语言分布、Wrapped 分享卡片' },
-  { id: 'cap-09', name: 'pk-arena', desc: '仓库 PK 对战动画、赢家展示和 PNG 海报生成' },
-  { id: 'cap-10', name: 'devops-docs', desc: 'CI/CD、贡献指南、安全策略、变更日志和一键启动脚本' },
+  { label: 'AI 诊断', items: 'DeepSeek / OpenAI / 无 Key 本地规则诊断', align: 'right' },
+  { label: '安全', items: 'XSS 转义 / Session 强密钥 / OAuth state / CORS 白名单', align: 'left' },
+  { label: '工程化', items: 'OpenSpec / GitHub Actions / GitLink DevOps / pytest / Vitest', align: 'right' },
+  { label: '分享能力', items: 'HTML 报告 / PDF 打印 / Wrapped 分享卡片 / PK 海报', align: 'left' },
+  { label: '本地体验', items: '一键启动 / 缓存感知分析 / 分步进度 / 榜单分页', align: 'right' },
 ];
 
 const HIGHLIGHTS = [
-  '输入 GitHub 仓库即可生成 6 维健康度报告、AI 建议、Badge 和导出报告。',
-  '报告页支持缓存感知加载，30 分钟内刷新不会重复克隆和分析。',
-  '排行榜已支持 SQLite 持久化、投票冷却、分页和趋势标记。',
-  'Compare 页面提供仓库 PK Arena，分析完成后可生成对战海报。',
-  '所有重要变更通过 OpenSpec capability 归档，方便追踪设计和任务闭环。',
+  '输入 GitHub 仓库 URL，即可生成 6 维健康度报告、雷达图、语言分布和问题列表。',
+  '报告页支持 30 分钟缓存感知加载，刷新页面不会反复克隆和分析同一仓库。',
+  'AI 诊断自动执行：无 API Key 时使用本地规则，有 DeepSeek Key 时升级为 LLM 建议。',
+  '支持 HTML/PDF 导出、README Badge、分享卡片和仓库 PK 海报。',
+  '排行榜支持投票、分页和趋势展示，Compare 页面支持快捷预填与并行分析。',
+  '安全层完成 XSS 防护、Session 密钥强校验、pending task 锁保护与缓存深拷贝。',
+  '工程侧补齐 GitHub Actions、GitLink DevOps 使用说明、CONTRIBUTING / SECURITY / CHANGELOG。',
+];
+
+const CAPABILITIES = [
+  { id: 'cap-01', name: 'project-init', desc: '前后端骨架、基础 API、OpenSpec 项目结构与启动流程。' },
+  { id: 'cap-02', name: 'analysis-engine', desc: '代码质量、测试覆盖、架构、文档、依赖安全、工程规范 6 维分析。' },
+  { id: 'cap-03', name: 'api-report', desc: '分析聚合 API、缓存、Badge SVG、HTML 报告和历史记录。' },
+  { id: 'cap-04', name: 'ai-diagnosis', desc: 'AI 诊断接口、建议结构化输出、置信度与人工复核标记。' },
+  { id: 'cap-05', name: 'frontend-polish', desc: '暗色玻璃拟态 UI、雷达图、排行榜、报告页与真实 API 串联。' },
+  { id: 'cap-06', name: 'deploy-e2e', desc: 'Docker / 部署脚本 / E2E 自测流程，支持本地和线上验证。' },
+  { id: 'cap-07', name: 'polish-final', desc: 'Compare、历史趋势、投票系统和 JavaScript/TypeScript 深度分析。' },
+  { id: 'cap-08', name: 'async-optimize', desc: '异步分析任务、状态轮询和分析流程性能优化。' },
+  { id: 'cap-09', name: 'backend-frontend-optimize', desc: '前后端交互、错误态、加载态和体验细节优化。' },
+  { id: 'cap-10', name: 'theme-oauth-deploy', desc: '主题切换、GitHub OAuth、部署配置和认证体验完善。' },
+  { id: 'cap-11', name: 'discover-about', desc: '发现入口、关于页、项目说明和贡献引导。' },
+  { id: 'cap-12', name: 'bugfix-quality', desc: '集中修复已知 Bug，提升分析稳定性和页面质量。' },
+  { id: 'cap-13', name: 'quality-polish', desc: '细节打磨、边界状态、页面文案和视觉一致性。' },
+  { id: 'cap-14', name: 'proxy-auto-degrade', desc: 'Git 代理自动降级、缓存修复和克隆失败兜底。' },
+  { id: 'cap-15', name: 'curved-loop-hero', desc: 'CurvedLoop 首页标题与视觉表现增强。' },
+  { id: 'cap-16', name: 'react-bits-visual-redesign', desc: 'Iridescence WebGL 背景、Dock 导航、GlassCard、AnimatedCounter。' },
+  { id: 'cap-17', name: 'readme-screenshots', desc: '双语 README、页面截图和项目展示材料。' },
+  { id: 'cap-18', name: 'xss-security-fix', desc: 'Badge SVG 与 HTML 导出内容转义，修复 XSS 风险。' },
+  { id: 'cap-19', name: 'security-architecture-hardening', desc: 'Session 强密钥、pending task 锁、缓存深拷贝、CI/CD 与文档补全。' },
+  { id: 'cap-20', name: 'report-leaderboard-ux', desc: '缓存感知报告、自动 AI、进度条、PDF/分享卡片、语言饼图、榜单分页。' },
 ];
 
 export default function AboutPage() {
@@ -39,7 +51,7 @@ export default function AboutPage() {
       <p style={{ color: 'var(--text-secondary)', marginBottom: 32, lineHeight: 1.8 }}>
         Repo Health Check 是一个面向开源项目的仓库健康度体检工具。它会从代码质量、测试覆盖、
         架构健康、文档完整、依赖安全和工程规范六个维度分析 GitHub 仓库，并把结果转成可视化报告、
-        AI 改进建议、README Badge、排行榜、对比 PK 和可分享海报。
+        AI 改进建议、README Badge、排行榜、对比 PK 和可分享资产。
       </p>
 
       <GlassCard style={{ marginBottom: 28 }}>
@@ -55,7 +67,7 @@ export default function AboutPage() {
 
       <GlassCard style={{ marginBottom: 28 }}>
         <h2 className="section-title text-gradient-purple">技术栈</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+        <div className="about-tech-grid">
           {TECH_STACK.map((t) => (
             <div
               key={t.label}
@@ -78,6 +90,7 @@ export default function AboutPage() {
         <h2 className="section-title text-gradient-purple">OpenSpec 交付轨迹</h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 20 }}>
           本项目使用 OpenSpec 做规范化管理，每个 capability 都保留 proposal、design、tasks 和规格快照。
+          当前已归档 {CAPABILITIES.length} 个 capability。
         </p>
         <div className="timeline">
           {CAPABILITIES.map((cap) => (

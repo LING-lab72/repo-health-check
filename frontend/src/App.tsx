@@ -1,8 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Iridescence from './components/Iridescence';
-import ErrorBoundary from './components/ErrorBoundary';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const ReportPage = lazy(() => import('./pages/ReportPage'));
@@ -19,27 +18,15 @@ function Loading() {
 }
 
 function App() {
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const update = () => setReducedMotion(query.matches);
-    update();
-    query.addEventListener('change', update);
-    return () => query.removeEventListener('change', update);
-  }, []);
-
   return (
-    <ErrorBoundary>
-      {!reducedMotion && (
-        <Iridescence
-          color={[0.33, 0.22, 0.55]}
-          mouseReact={true}
-          amplitude={0.06}
-          speed={0.8}
-          className="iridescence-bg"
-        />
-      )}
+    <>
+      <Iridescence
+        color={[0.33, 0.22, 0.55]}
+        mouseReact={true}
+        amplitude={0.06}
+        speed={0.8}
+        className="iridescence-bg"
+      />
       <div style={{ position: 'relative', zIndex: 1 }}>
         <Navbar />
         <Suspense fallback={<Loading />}>
@@ -52,7 +39,7 @@ function App() {
           </Routes>
         </Suspense>
       </div>
-    </ErrorBoundary>
+    </>
   );
 }
 

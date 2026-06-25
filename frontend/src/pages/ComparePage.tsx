@@ -36,13 +36,20 @@ export default function ComparePage() {
     const repoA = searchParams.get('repo_a');
     const repoB = searchParams.get('repo_b');
     if (repoA) setUrlA(repoA);
-    if (repoB) setUrlB(repoB);
+    setUrlB(repoB || '');
+    setResultA(null);
+    setResultB(null);
+    setError('');
   }, [searchParams]);
 
   const handleCompare = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validA || !validB) {
       setError('两个 URL 都必须是有效的 GitHub 地址');
+      return;
+    }
+    if (urlA.trim().replace(/\/$/, '') === urlB.trim().replace(/\/$/, '')) {
+      setError('Please enter two different GitHub repositories');
       return;
     }
     setError('');
@@ -93,6 +100,7 @@ export default function ComparePage() {
                 onChange={(e) => { setUrlA(e.target.value); setError(''); }}
                 className={`input ${urlA && !validA ? 'input-error' : ''}`}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
             <div>
@@ -104,6 +112,7 @@ export default function ComparePage() {
                 onChange={(e) => { setUrlB(e.target.value); setError(''); }}
                 className={`input ${urlB && !validB ? 'input-error' : ''}`}
                 disabled={loading}
+                autoComplete="off"
               />
             </div>
           </div>
@@ -119,7 +128,7 @@ export default function ComparePage() {
       {hasResult && (
         <>
           {/* Score Comparison */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 0, alignItems: 'center', marginBottom: 28 }}>
+          <div className="compare-score-grid">
             {[resultA, resultB].map((r, i) => (
               <GlassCard key={i} tilt style={{ textAlign: 'center' }}>
                 <p style={{ color: 'var(--text-secondary)', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>仓库 {i === 0 ? 'A' : 'B'}</p>
