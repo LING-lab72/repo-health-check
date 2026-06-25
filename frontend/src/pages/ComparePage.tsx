@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { API_BASE } from '../api';
 import type { AnalysisDimension } from '../context/AppContext';
 import RadarChart from '../components/RadarChart';
 import ScoreBar from '../components/ScoreBar';
 import AnimatedCounter from '../components/AnimatedCounter';
 import GlassCard from '../components/GlassCard';
+import { downloadComparePoster } from '../utils/comparePoster';
+import { normalizeBadgeColor } from '../utils/reportAssets';
 
 const GITHUB_URL_RE = /^https?:\/\/github\.com\/[\w.-]+\/[\w.-]+\/?$/;
 
@@ -19,6 +21,7 @@ interface CompareResult {
 
 export default function ComparePage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [urlA, setUrlA] = useState('');
   const [urlB, setUrlB] = useState('');
   const [loading, setLoading] = useState(false);
@@ -28,6 +31,13 @@ export default function ComparePage() {
 
   const validA = GITHUB_URL_RE.test(urlA.trim());
   const validB = GITHUB_URL_RE.test(urlB.trim());
+
+  useEffect(() => {
+    const repoA = searchParams.get('repo_a');
+    const repoB = searchParams.get('repo_b');
+    if (repoA) setUrlA(repoA);
+    if (repoB) setUrlB(repoB);
+  }, [searchParams]);
 
   const handleCompare = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,7 +51,7 @@ export default function ComparePage() {
       const resp = await fetch(`${API_BASE}/api/compare`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ repo_a: urlA.trim(), repo_b: urlB.trim() }),
+        body: JSON.stringify({ repo_a: urlA.trim(), repo_b: urlB.trim(), skip_ai: false }),
       });
       const json = await resp.json();
       if (json.code === 0) {
@@ -58,6 +68,12 @@ export default function ComparePage() {
   };
 
   const hasResult = resultA && resultB;
+  const winner = hasResult
+    ? resultA.health_score >= resultB.health_score
+      ? resultA
+      : resultB
+    : null;
+  const scoreGap = hasResult ? Math.abs(resultA.health_score - resultB.health_score) : 0;
 
   return (
     <div className="page-container fade-in">
@@ -120,6 +136,48 @@ export default function ComparePage() {
             {/* VS divider in middle column */}
             <div className="vs-divider">VS</div>
           </div>
+
+          <GlassCard style={{ marginBottom: 28 }}>
+            <div className="pk-arena">
+              <div className="pk-header">
+                <span>Repository PK Arena</span>
+                <strong>{winner?.repo_url.replace(/^https?:\/\/github\.com\//, '')} wins</strong>
+                <em>领先 {scoreGap.toFixed(0)} 分</em>
+              </div>
+              <div className="pk-board">
+                {[resultA, resultB].map((r, i) => {
+                  const isWinner = winner?.repo_url === r.repo_url;
+                  const energy = Math.max(4, Math.min(100, r.health_score));
+                  return (
+                    <div key={r.repo_url} className={`pk-fighter ${isWinner ? 'winner' : ''}`}>
+                      <div className="pk-avatar" style={{ borderColor: normalizeBadgeColor(r.badge_color) }}>
+                        {i === 0 ? 'A' : 'B'}
+                      </div>
+                      <div className="pk-meta">
+                        <strong>{r.repo_url.replace(/^https?:\/\/github\.com\//, '')}</strong>
+                        <span>{Math.round(r.health_score)} / 100</span>
+                      </div>
+                      <div className="pk-health">
+                        <div
+                          style={{
+                            width: `${energy}%`,
+                            background: normalizeBadgeColor(r.badge_color),
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <button
+                className="btn btn-sm"
+                onClick={() => downloadComparePoster(resultA, resultB)}
+                style={{ marginTop: 18 }}
+              >
+                生成 PK 海报
+              </button>
+            </div>
+          </GlassCard>
 
           {/* Radar Charts */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>

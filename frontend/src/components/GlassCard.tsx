@@ -29,6 +29,14 @@ export default function GlassCard({ children, className = '', tilt = false, styl
     cardRef.current.style.transform = '';
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!onClick) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
       ref={cardRef}
@@ -37,6 +45,9 @@ export default function GlassCard({ children, className = '', tilt = false, styl
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
     >
       {children}
     </div>

@@ -28,8 +28,11 @@ SYSTEM_PROMPT = (
 )
 
 
-def _get_client() -> tuple[str | None, str, str]:
+def _get_client(api_key_override: str | None = None) -> tuple[str | None, str, str]:
     """Determine which LLM provider to use."""
+    if api_key_override:
+        return api_key_override, DEEPSEEK_BASE, "deepseek"
+
     deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
     if deepseek_key:
         return deepseek_key, DEEPSEEK_BASE, "deepseek"
@@ -115,9 +118,11 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
     for dim in dimensions:
         score = dim.get("score", 100)
         name = dim.get("dimension", "")
+        issues = dim.get("issues", [])
+        issue_hint = f"。典型问题：{issues[0]}" if issues else ""
         if score < 40:
             suggestions.append({
-                "advice": f"[{name}] 得分 {score}，需优先改进该维度",
+                "advice": f"[{name}] 得分 {score}，需优先改进该维度{issue_hint}",
                 "severity": "high",
                 "estimated_hours": 8,
                 "confidence": 85,
@@ -125,7 +130,7 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
             })
         elif score < 60:
             suggestions.append({
-                "advice": f"[{name}] 得分 {score}，建议查阅最佳实践并逐步改善",
+                "advice": f"[{name}] 得分 {score}，建议查阅最佳实践并逐步改善{issue_hint}",
                 "severity": "medium",
                 "estimated_hours": 4,
                 "confidence": 70,
@@ -143,10 +148,10 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
 
 
 async def ai_diagnose(
-    dimensions: list[dict[str, Any]], repo_url: str
+    dimensions: list[dict[str, Any]], repo_url: str, api_key_override: str | None = None
 ) -> list[dict[str, Any]]:
     """Generate AI-powered improvement suggestions."""
-    api_key, base_url, provider = _get_client()
+    api_key, base_url, provider = _get_client(api_key_override)
     if not api_key:
         return _fallback_diagnosis(dimensions)
 

@@ -35,7 +35,14 @@ export default function ScoreBar({ label, score }: Props) {
         <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-secondary)' }}>{displayLabel}</span>
         <span style={{ fontWeight: 800, color, fontVariantNumeric: 'tabular-nums' }}>{score}/100</span>
       </div>
-      <div className="score-bar-track">
+      <div
+        className="score-bar-track"
+        role="progressbar"
+        aria-label={`${displayLabel}得分`}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.max(0, Math.min(100, score))}
+      >
         <div
           className="score-bar-fill"
           style={{

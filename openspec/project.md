@@ -7,14 +7,16 @@
 
 ## 技术栈
 - 后端：Python 3.11+ / FastAPI / uvicorn
-- 分析引擎：radon（圈复杂度）/ lizard（多语言）/ bandit（安全）/ pip-audit
+- 分析引擎：radon（圈复杂度）/ lizard（多语言）/ bandit（安全）/ pip-audit / npm audit
 - 前端：React 18 / TypeScript / Vite / ECharts
 - AI 诊断：OpenAI / DeepSeek API
-- 部署：Vercel
+- 存储：SQLite + 内存缓存
+- 部署：Docker Compose / Vercel
 
 ## 编码规范
 - Python：black 格式化 + flake8 检查
 - TypeScript：ESLint + Prettier
+- CI：GitHub Actions 执行后端 lint/test/E2E 与前端 lint/test/build
 - 提交信息遵循 Conventional Commits
 
 ## 架构约定
@@ -25,7 +27,7 @@
 ## 测试策略
 - 后端：pytest 单元测试（每个分析模块）
 - 前端：Vitest 组件测试
-- 集成测试：用 psf/requests 仓库作为基准测试用例
+- 集成测试：本仓库自分析 smoke test
 
 ## Git 工作流
 - main 分支保护

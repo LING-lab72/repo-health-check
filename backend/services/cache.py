@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+import copy
 import threading
 import time
 from typing import Any
@@ -54,8 +55,8 @@ class AnalysisCache:
             if time.time() - timestamp > self._ttl:
                 del self._cache[repo_url]
                 return None
-            # Return a copy to prevent mutation
-            return dict(result)
+            # Return a deep copy so nested lists/dicts cannot mutate cache state.
+            return copy.deepcopy(result)
 
     def set(self, repo_url: str, result: dict[str, Any]) -> None:
         """Store result in cache."""
@@ -68,7 +69,7 @@ class AnalysisCache:
                     oldest_key = min(self._cache.keys(), key=lambda k: self._cache[k][1])
                     del self._cache[oldest_key]
 
-            self._cache[repo_url] = (dict(result), time.time())
+            self._cache[repo_url] = (copy.deepcopy(result), time.time())
 
     def get_status(self, repo_url: str) -> str:
         """Get cache status for a repo URL: 'cached', 'expired', or 'miss'."""
@@ -95,13 +96,13 @@ class AnalysisCache:
                 if entry is not None:
                     result, timestamp = entry
                     if time.time() - timestamp <= self._ttl:
-                        return dict(result)
+                        return copy.deepcopy(result)
                 return None
 
             # Fallback: iterate by hash (legacy path with collision risk)
             for url, (result, timestamp) in self._cache.items():
                 if self.url_hash(url) == repo_hash and time.time() - timestamp <= self._ttl:
-                    return dict(result)
+                    return copy.deepcopy(result)
         return None
 
     def clear(self) -> None:

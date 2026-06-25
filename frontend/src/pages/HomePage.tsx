@@ -93,6 +93,8 @@ export default function HomePage() {
             <input
               type="text"
               placeholder="https://github.com/user/repo"
+              aria-label="GitHub 仓库 URL"
+              aria-invalid={showError || !!error}
               value={url}
               onChange={(e) => {
                 setUrl(e.target.value);
@@ -145,7 +147,7 @@ export default function HomePage() {
           {showKeyConfig && (
             <div style={{ marginTop: 12 }}>
               <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                配置 DeepSeek API Key 以启用 AI 智能诊断功能。Key 仅保存在本地浏览器中。
+                不配置 Key 也会自动生成本地智能诊断；配置 DeepSeek API Key 后会升级为 LLM 诊断。Key 仅保存在本地浏览器中。
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
@@ -167,7 +169,7 @@ export default function HomePage() {
               </div>
               {hasKey && (
                 <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 6 }}>
-                  已配置 Key ({savedKey.slice(0, 8)}...)。AI 诊断将在分析完成后自动触发。
+                  已配置 Key ({savedKey.slice(0, 8)}...)。分析完成后将自动使用 LLM 诊断。
                 </p>
               )}
             </div>

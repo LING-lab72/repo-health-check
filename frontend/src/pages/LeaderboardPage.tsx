@@ -13,23 +13,44 @@ interface LeaderboardItem {
   _trend?: 'up' | 'down' | 'same' | 'new';
 }
 
+interface LeaderboardPageData {
+  items: LeaderboardItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+const PAGE_SIZE = 20;
+
 export default function LeaderboardPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<LeaderboardItem[]>([]);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [hasNext, setHasNext] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [voteError, setVoteError] = useState('');
+  const [votingRepo, setVotingRepo] = useState<string | null>(null);
 
-  const fetchLeaderboard = () => {
-    fetch(`${API_BASE}/api/leaderboard`)
+  const fetchLeaderboard = (targetPage = page) => {
+    setLoading(true);
+    fetch(`${API_BASE}/api/leaderboard?page=${targetPage}&page_size=${PAGE_SIZE}`)
       .then((r) => r.json())
-      .then((json) => setItems(json.data || []))
+      .then((json) => {
+        const data = json.data as LeaderboardPageData | undefined;
+        setItems(data?.items || []);
+        setTotal(data?.total || 0);
+        setHasNext(Boolean(data?.has_next));
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { fetchLeaderboard(); }, []);
-
-  const [voteError, setVoteError] = useState('');
-  const [votingRepo, setVotingRepo] = useState<string | null>(null);
+  useEffect(() => {
+    fetchLeaderboard(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
   const handleVote = async (repoUrl: string) => {
     if (votingRepo) return;
@@ -43,16 +64,19 @@ export default function LeaderboardPage() {
       });
       if (resp.status === 429) {
         setVoteError('投票太频繁，请稍后再试');
-        setTimeout(() => setVoteError(''), 3000);
+        window.setTimeout(() => setVoteError(''), 3000);
         return;
       }
-      fetchLeaderboard();
+      fetchLeaderboard(page);
     } finally {
       setVotingRepo(null);
     }
   };
 
-  if (loading) {
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const topRepo = page === 1 ? items[0] : undefined;
+
+  if (loading && items.length === 0) {
     return (
       <div className="page-container" style={{ textAlign: 'center', paddingTop: 80 }}>
         <div className="spinner" />
@@ -60,25 +84,22 @@ export default function LeaderboardPage() {
     );
   }
 
-  const topRepo = items[0] as LeaderboardItem | undefined;
-
   return (
     <div className="page-container fade-in stagger-children">
       <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
 
       <h1 className="text-gradient-purple">仓库健康排行榜</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: 28 }}>
-        已分析 {items.length} 个仓库
+        已收录 {total} 个仓库，每页展示 {PAGE_SIZE} 个
       </p>
 
       {voteError && (
         <div className="error-toast" style={{ marginBottom: 16 }}>{voteError}</div>
       )}
 
-      {/* Weekly Best */}
       {topRepo && (
         <div className="lb-week-best" style={{ marginBottom: 28 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.03em' }}>本周最健康仓库</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.03em' }}>当前最高分仓库</span>
           <p style={{ fontSize: 16, fontWeight: 700, marginTop: 6, wordBreak: 'break-all' }}>
             {topRepo.repo_url.replace('https://github.com/', '')}
           </p>
@@ -96,12 +117,10 @@ export default function LeaderboardPage() {
 
       {items.length === 0 ? (
         <div className="glass-card" style={{ textAlign: 'center', padding: 48 }}>
-          <p style={{ fontSize: 48, marginBottom: 16 }}>📭</p>
           <p style={{ color: 'var(--text-secondary)' }}>暂无排行数据，去首页分析第一个仓库吧</p>
         </div>
       ) : (
         <div>
-          {/* Header row */}
           <div className="lb-row" style={{ color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600, marginBottom: 8, border: 'none', background: 'transparent', backdropFilter: 'none' }}>
             <span style={{ width: 48 }}>排名</span>
             <span style={{ flex: 1 }}>仓库</span>
@@ -111,9 +130,8 @@ export default function LeaderboardPage() {
             <span style={{ width: 60, textAlign: 'center' }}>投票</span>
           </div>
 
-          {/* Leader rows */}
           {items.map((item, i) => {
-            const rank = i + 1;
+            const rank = (page - 1) * PAGE_SIZE + i + 1;
             const repoName = item.repo_url.replace(/^https?:\/\/github\.com\//, '');
             const votes = item._votes || 0;
             const rankClass = rank <= 3 ? `lb-rank-${rank}` : 'lb-rank-default';
@@ -144,25 +162,25 @@ export default function LeaderboardPage() {
                   <button
                     onClick={() => handleVote(item.repo_url)}
                     disabled={votingRepo === item.repo_url}
-                    style={{
-                      background: 'none',
-                      border: '1px solid var(--border)',
-                      opacity: votingRepo === item.repo_url ? 0.4 : 1,
-                      cursor: 'pointer',
-                      fontSize: 13,
-                      padding: '4px 10px',
-                      borderRadius: 8,
-                      transition: 'all 0.2s',
-                      color: 'var(--text-secondary)',
-                    }}
+                    className="vote-btn"
                     title="点赞"
                   >
-                    👍 {votes}
+                    + {votes}
                   </button>
                 </span>
               </div>
             );
           })}
+
+          <div className="pagination">
+            <button className="btn btn-sm" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
+              上一页
+            </button>
+            <span>{page} / {totalPages}</span>
+            <button className="btn btn-sm" disabled={!hasNext || loading} onClick={() => setPage((p) => p + 1)}>
+              下一页
+            </button>
+          </div>
         </div>
       )}
     </div>

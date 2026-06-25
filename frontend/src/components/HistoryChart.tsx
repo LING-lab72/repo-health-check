@@ -14,21 +14,24 @@ interface HistoryEntry {
 
 interface Props {
   history: HistoryEntry[];
+  benchmarkScore?: number;
 }
 
-export default function HistoryChart({ history }: Props) {
+export default function HistoryChart({ history, benchmarkScore = 72 }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
 
   useEffect(() => {
-    if (!chartRef.current || history.length < 2) return;
+    if (!chartRef.current || history.length < 1) return;
     const chart = echarts.init(chartRef.current);
     chartInstance.current = chart;
 
-    const dates = history.map((h) => {
-      const d = new Date(h.analyzed_at);
-      return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
-    });
+    const dates = history.length === 1
+      ? ['本次']
+      : history.map((h) => {
+          const d = new Date(h.analyzed_at);
+          return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+        });
     const scores = history.map((h) => h.health_score);
 
     chart.setOption({
@@ -60,6 +63,11 @@ export default function HistoryChart({ history }: Props) {
           markLine: {
             silent: true,
             data: [
+              {
+                yAxis: benchmarkScore,
+                lineStyle: { color: '#06b6d4', type: 'dashed' },
+                label: { formatter: `同类均值 ${benchmarkScore}`, color: '#06b6d4' },
+              },
               { yAxis: 80, lineStyle: { color: '#22c55e', type: 'dashed' }, label: { formatter: 'A', color: '#22c55e' } },
               { yAxis: 60, lineStyle: { color: '#eab308', type: 'dashed' }, label: { formatter: 'B', color: '#eab308' } },
             ],
@@ -72,7 +80,7 @@ export default function HistoryChart({ history }: Props) {
       chart.dispose();
       chartInstance.current = null;
     };
-  }, [history]);
+  }, [benchmarkScore, history]);
 
   // Resize on container or window resize
   useEffect(() => {
@@ -85,7 +93,7 @@ export default function HistoryChart({ history }: Props) {
 
   return (
     <div style={{ marginBottom: 24 }}>
-      <h2 className="section-title">历史趋势</h2>
+      <h2 className="section-title">历史趋势与同类参考</h2>
       <div className="card">
         <div ref={chartRef} style={{ width: '100%', height: 250 }} />
       </div>

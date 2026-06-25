@@ -23,9 +23,14 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+backend/tests/.tmp-data/
 
 # Project runtime data
 data/history.json
+data/votes.json
+data/*.db
+data/*.db-wal
+data/*.db-shm
 e2e_report.json
 
 # Codebuddy workspace

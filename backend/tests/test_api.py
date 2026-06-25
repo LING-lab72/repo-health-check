@@ -1,7 +1,7 @@
 """Tests for API endpoints using TestClient."""
 import sys
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -62,19 +62,18 @@ def test_analyze_missing_field():
 
 
 @patch("backend.routes.analyze.clone_repo")
-@patch("backend.routes.analyze._run_sync_aggregate")
-def test_analyze_success_flow(mock_run_aggregate, mock_clone):
+@patch("backend.routes.analyze.aggregate", new_callable=AsyncMock)
+def test_analyze_success_flow(mock_aggregate, mock_clone):
     """Test the full sync flow with mocked clone and aggregate.
 
-    Uses force_sync=True to trigger the synchronous path which calls
-    _run_sync_aggregate (a plain function wrapping asyncio.run).
+    Uses force_sync=True to trigger the request/response path.
     """
     from pathlib import Path
     import tempfile
 
     tmpdir = Path(tempfile.mkdtemp())
     mock_clone.return_value = (tmpdir, "test-repo")
-    mock_run_aggregate.return_value = {
+    mock_aggregate.return_value = {
         "repo_url": "https://github.com/test/repo",
         "health_score": 85.0,
         "badge_level": "A",
@@ -136,3 +135,45 @@ def test_badge_cached_result():
     resp = client.get(f"/api/badge/{h}")
     assert resp.status_code == 200
     assert "A" in resp.text
+
+
+@patch("backend.routes.analyze.ai_diagnose", new_callable=AsyncMock)
+def test_analyze_enriches_cached_result_with_ai(mock_ai):
+    url = "https://github.com/test/repo"
+    mock_ai.return_value = [
+        {
+            "advice": "Improve tests",
+            "severity": "medium",
+            "estimated_hours": 2,
+            "confidence": 80,
+            "need_human_review": False,
+        }
+    ]
+    cache.set(url, {
+        "repo_url": url,
+        "health_score": 80,
+        "badge_level": "B",
+        "badge_color": "yellow",
+        "dimensions": [
+            {"dimension": "test_coverage", "score": 55, "details": {}, "issues": []},
+        ],
+        "ai_diagnosis": [],
+        "analyzed_at": "2026-01-01T00:00:00Z",
+    })
+
+    client = TestClient(app)
+    resp = client.post(
+        "/api/analyze",
+        json={
+            "repo_url": url,
+            "force_sync": True,
+            "skip_ai": False,
+            "ai_api_key": "sk-user",
+        },
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["message"] == "success (cached + ai)"
+    assert data["data"]["ai_diagnosis"][0]["advice"] == "Improve tests"
+    mock_ai.assert_awaited_once()

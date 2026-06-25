@@ -37,6 +37,13 @@ class TestClientDetection:
         assert key is None
         assert provider == ""
 
+    def test_override_key_prefers_deepseek(self, monkeypatch):
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-openai")
+        key, _base, provider = _get_client("sk-user")
+        assert key == "sk-user"
+        assert provider == "deepseek"
+
 
 class TestParseLLMResponse:
     def test_parse_valid_json(self):
@@ -148,6 +155,18 @@ class TestAsyncDiagnose:
         assert all("confidence" in s for s in result)
         assert all("need_human_review" in s for s in result)
 
+    def test_no_key_uses_local_rule_diagnosis_with_issue_hint(self, monkeypatch):
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        result = asyncio.run(ai_diagnose(
+            [{"dimension": "test_coverage", "score": 35, "issues": ["coverage below threshold"]}],
+            "https://github.com/a/b",
+        ))
+
+        assert result[0]["severity"] == "high"
+        assert "coverage below threshold" in result[0]["advice"]
+
     @patch("backend.ai.diagnose.httpx.AsyncClient")
     def test_mock_llm_success(self, mock_client, monkeypatch):
         monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-test")
@@ -168,6 +187,29 @@ class TestAsyncDiagnose:
         assert result[0]["severity"] == "high"
         assert result[0]["confidence"] == 85
         assert result[0]["need_human_review"] is False
+
+    @patch("backend.ai.diagnose.httpx.AsyncClient")
+    def test_mock_llm_success_with_override_key(self, mock_client, monkeypatch):
+        monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "choices": [{"message": {"content": '[{"advice": "Fix bugs", "severity": "high", "estimated_hours": 5, "confidence": 85}]'}}]
+        }
+        mock_post = AsyncMock(return_value=mock_resp)
+        mock_client.return_value.__aenter__.return_value.post = mock_post
+
+        result = asyncio.run(ai_diagnose(
+            [{"dimension": "code_quality", "score": 50, "issues": []}],
+            "https://github.com/a/b",
+            api_key_override="sk-user",
+        ))
+
+        assert len(result) == 1
+        headers = mock_post.call_args.kwargs["headers"]
+        assert headers["Authorization"] == "Bearer sk-user"
 
     @patch("backend.ai.diagnose.httpx.AsyncClient")
     def test_mock_llm_timeout_fallback(self, mock_client, monkeypatch):

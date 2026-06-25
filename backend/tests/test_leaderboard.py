@@ -1,4 +1,4 @@
-"""Tests for leaderboard API with JSON storage and votes."""
+"""Tests for leaderboard API with SQLite storage and votes."""
 import sys
 from pathlib import Path
 
@@ -17,11 +17,9 @@ except RuntimeError:
 
 @pytest.fixture(autouse=True)
 def clear_storage():
-    storage._entries.clear()
-    storage._votes.clear()
+    storage.clear_all()
     yield
-    storage._entries.clear()
-    storage._votes.clear()
+    storage.clear_all()
 
 
 def test_leaderboard_empty():
@@ -59,6 +57,27 @@ def test_leaderboard_with_votes():
     resp = client.get("/api/leaderboard")
     data = resp.json()["data"]
     assert data[0]["_votes"] == 1
+
+
+def test_leaderboard_paginates_results():
+    for i in range(3):
+        storage.save_entry({
+            "repo_url": f"https://github.com/a/repo{i}",
+            "health_score": 90 - i,
+            "badge_level": "A",
+            "badge_color": "brightgreen",
+            "analyzed_at": "2026-01-01T00:00:00Z",
+        })
+
+    client = TestClient(app)
+    resp = client.get("/api/leaderboard?page=2&page_size=2")
+    data = resp.json()["data"]
+
+    assert data["total"] == 3
+    assert data["page"] == 2
+    assert data["page_size"] == 2
+    assert data["has_next"] is False
+    assert [item["repo_url"] for item in data["items"]] == ["https://github.com/a/repo2"]
 
 
 def test_save_entry_updates_existing():

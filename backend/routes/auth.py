@@ -1,5 +1,6 @@
 """GitHub OAuth authentication."""
 import os
+import secrets
 from urllib.parse import urlencode
 
 import httpx
@@ -16,7 +17,9 @@ GITHUB_AUTH_URL = "https://github.com/login/oauth/authorize"
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 SESSION_COOKIE = "repo_health_session"
+OAUTH_STATE_COOKIE = "repo_health_oauth_state"
 COOKIE_MAX_AGE = 86400 * 7  # 7 days
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "").lower() in {"1", "true", "yes"}
 
 
 def _backend_url(request: Request) -> str:
@@ -29,22 +32,37 @@ async def github_login(request: Request):
     """Redirect to GitHub OAuth authorization page."""
     if not GITHUB_CLIENT_ID:
         raise HTTPException(status_code=500, detail="GITHUB_CLIENT_ID not configured")
+    state = secrets.token_urlsafe(24)
     params = {
         "client_id": GITHUB_CLIENT_ID,
         "redirect_uri": f"{_backend_url(request)}/api/auth/callback",
         "scope": "read:user",
+        "state": state,
     }
-    return Response(
+    redirect = Response(
         status_code=302,
         headers={"Location": f"{GITHUB_AUTH_URL}?{urlencode(params)}"},
     )
+    redirect.set_cookie(
+        key=OAUTH_STATE_COOKIE,
+        value=encode_session({"state": state}),
+        max_age=600,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+    )
+    return redirect
 
 
 @router.get("/callback")
-async def github_callback(code: str, request: Request, response: Response):
+async def github_callback(code: str, state: str, request: Request):
     """Handle GitHub OAuth callback: exchange code for token, get user info."""
     if not GITHUB_CLIENT_ID or not GITHUB_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="OAuth not configured")
+
+    expected_state = decode_session(request.cookies.get(OAUTH_STATE_COOKIE, "")).get("state")
+    if not expected_state or not secrets.compare_digest(expected_state, state):
+        raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
     # Exchange code for access token
     async with httpx.AsyncClient() as client:
@@ -57,6 +75,8 @@ async def github_callback(code: str, request: Request, response: Response):
                 "code": code,
             },
         )
+        if token_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to exchange OAuth code")
         token_data = token_resp.json()
         access_token = token_data.get("access_token")
         if not access_token:
@@ -67,6 +87,8 @@ async def github_callback(code: str, request: Request, response: Response):
             GITHUB_USER_URL,
             headers={"Authorization": f"Bearer {access_token}"},
         )
+        if user_resp.status_code != 200:
+            raise HTTPException(status_code=400, detail="Failed to get GitHub user")
         user_data = user_resp.json()
 
     # Store user in session
@@ -77,17 +99,18 @@ async def github_callback(code: str, request: Request, response: Response):
     }
 
     cookie = encode_session(session)
-    response.set_cookie(
+    frontend = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    redirect = Response(status_code=302, headers={"Location": frontend})
+    redirect.set_cookie(
         key=SESSION_COOKIE,
         value=cookie,
         max_age=COOKIE_MAX_AGE,
         httponly=True,
         samesite="lax",
+        secure=COOKIE_SECURE,
     )
-
-    # Redirect to frontend
-    frontend = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-    return Response(status_code=302, headers={"Location": frontend})
+    redirect.delete_cookie(OAUTH_STATE_COOKIE)
+    return redirect
 
 
 def get_current_user(request: Request) -> dict | None:

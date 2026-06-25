@@ -72,9 +72,13 @@ def _test_github_direct(timeout: int = DIRECT_CONNECT_TIMEOUT) -> bool:
     try:
         result = subprocess.run(
             [
-                "git", "ls-remote", "--heads",
-                "-c", "http.proxy=",       # override global proxy to empty
-                "-c", "https.proxy=",
+                "git",
+                "-c",
+                "http.proxy=",
+                "-c",
+                "https.proxy=",
+                "ls-remote",
+                "--heads",
                 "https://github.com/torvalds/linux.git",
             ],
             capture_output=True,
@@ -127,13 +131,13 @@ def _run_clone(url: str, dest: Path, base_dir: Path, proxy: str | None = None) -
         CloneError: If the clone command fails.
         CloneTimeoutError: If the clone exceeds the timeout.
     """
-    cmd = ["git", "clone", "--depth", "1", "--filter=blob:none", "--quiet"]
+    cmd = ["git"]
     if proxy:
         cmd += ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"]
     else:
         # Explicitly clear any global proxy config for this clone
         cmd += ["-c", "http.proxy=", "-c", "https.proxy="]
-    cmd += [url, str(dest)]
+    cmd += ["clone", "--depth", "1", "--filter=blob:none", "--quiet", url, str(dest)]
 
     try:
         result = subprocess.run(

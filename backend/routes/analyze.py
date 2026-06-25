@@ -3,11 +3,13 @@ from __future__ import annotations
 
 import asyncio
 import shutil
+import threading
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
+from backend.ai.diagnose import ai_diagnose
 from backend.analyzer.aggregator import aggregate
 from backend.models.response import ApiResponse
 from backend.services.cache import cache
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/api")
 
 # Track pending background tasks
 _pending_tasks: set[str] = set()
+_pending_lock = threading.Lock()
 
 
 class AnalyzeRequest(BaseModel):
@@ -26,6 +29,11 @@ class AnalyzeRequest(BaseModel):
     repo_url: str = Field(..., description="GitHub repository URL")
     force_sync: bool = Field(default=False, description="If false, run in background")
     skip_ai: bool = Field(default=False, description="If true, skip AI diagnosis")
+    ai_api_key: str | None = Field(
+        default=None,
+        repr=False,
+        description="Optional DeepSeek API key for this request only. It is not persisted.",
+    )
 
 
 def _make_error(repo_url: str, msg: str) -> dict:
@@ -42,28 +50,34 @@ def _make_error(repo_url: str, msg: str) -> dict:
     }
 
 
-def _run_sync_aggregate(repo_path: Path, repo_url: str, skip_ai: bool = False) -> dict:
+def _run_sync_aggregate(
+    repo_path: Path,
+    repo_url: str,
+    skip_ai: bool = False,
+    ai_api_key: str | None = None,
+) -> dict:
     """Run aggregate() synchronously in a new event loop.
     
     MUST be called from a thread (not the main async event loop).
     FastAPI automatically runs non-async endpoint handlers in a thread pool,
-    and background tasks also run in threads — both are safe.
+    which is safe for the local self-analysis route.
     """
-    return asyncio.run(aggregate(repo_path, repo_url, skip_ai=skip_ai))
+    return asyncio.run(aggregate(repo_path, repo_url, skip_ai=skip_ai, ai_api_key=ai_api_key))
 
 
-def _run_analysis(repo_url: str) -> None:
-    """Background task: clone + analyze + cache. Runs in a thread (safe for asyncio.run)."""
+async def _run_analysis(repo_url: str, skip_ai: bool = False, ai_api_key: str | None = None) -> None:
+    """Background task: clone + analyze + cache."""
     repo_path: Path | None = None
     url = cache.normalize_url(repo_url)
     task_hash = cache.url_hash(url)
     try:
-        repo_path, _ = clone_repo(url)
-        result = _run_sync_aggregate(repo_path, url)
+        repo_path, _ = await asyncio.to_thread(clone_repo, url)
+        result = await aggregate(repo_path, url, skip_ai=skip_ai, ai_api_key=ai_api_key)
     except Exception as e:
         err = _make_error(url, f"仓库克隆失败: {e}")
         cache.set(url, err)
-        _pending_tasks.discard(task_hash)
+        with _pending_lock:
+            _pending_tasks.discard(task_hash)
         return
     finally:
         if repo_path is not None:
@@ -77,35 +91,48 @@ def _run_analysis(repo_url: str) -> None:
         "badge_color": result["badge_color"],
         "analyzed_at": result["analyzed_at"],
     })
-    _pending_tasks.discard(task_hash)
+    with _pending_lock:
+        _pending_tasks.discard(task_hash)
 
 
 @router.post("/analyze")
-async def analyze_repo(req: AnalyzeRequest, background_tasks: BackgroundTasks) -> ApiResponse[dict]:
+async def analyze_repo(req: AnalyzeRequest) -> ApiResponse[dict]:
     """Start or retrieve repo health analysis."""
     repo_url = cache.normalize_url(req.repo_url)
     task_hash = cache.url_hash(repo_url)
 
-    # 1. Cache hit — return immediately (but NOT for error results)
+    # 1. Cache hit — return immediately (but NOT for error results). If a previous
+    # run skipped AI, allow this request to enrich the cached report with diagnosis.
     cached = cache.get(repo_url)
     if cached is not None:
         if cached.get("_error"):
             # Error results are stale — network may have recovered.
             # Invalidate so we re-analyze instead of repeating the same error.
             cache.invalidate(repo_url)
+        elif not req.skip_ai and not cached.get("ai_diagnosis") and cached.get("dimensions"):
+            diagnosis = await ai_diagnose(
+                cached["dimensions"],
+                repo_url,
+                api_key_override=req.ai_api_key,
+            )
+            cached["ai_diagnosis"] = diagnosis
+            cache.set(repo_url, cached)
+            return ApiResponse(code=0, message="success (cached + ai)", data=cached)
         else:
             return ApiResponse(code=0, message="success (cached)", data=cached)
 
     # 2. Sync mode
     if req.force_sync:
         repo_path: Path | None = None
-        loop = asyncio.get_running_loop()
         try:
-            repo_path, _ = clone_repo(repo_url)
+            repo_path, _ = await asyncio.to_thread(clone_repo, repo_url)
             try:
                 result = await asyncio.wait_for(
-                    loop.run_in_executor(
-                        None, _run_sync_aggregate, repo_path, repo_url, req.skip_ai
+                    aggregate(
+                        repo_path,
+                        repo_url,
+                        skip_ai=req.skip_ai,
+                        ai_api_key=req.ai_api_key,
                     ),
                     timeout=180.0,
                 )
@@ -136,8 +163,15 @@ async def analyze_repo(req: AnalyzeRequest, background_tasks: BackgroundTasks) -
         return ApiResponse(code=0, message="success", data=result)
 
     # 3. Async mode: background task
-    _pending_tasks.add(task_hash)
-    background_tasks.add_task(_run_analysis, repo_url)
+    with _pending_lock:
+        if task_hash in _pending_tasks:
+            return ApiResponse(
+                code=1,
+                message="analyzing",
+                data={"task_id": task_hash, "repo_url": repo_url, "status": "pending"},
+        )
+        _pending_tasks.add(task_hash)
+    asyncio.create_task(_run_analysis(repo_url, req.skip_ai, req.ai_api_key))
 
     return ApiResponse(
         code=1,
@@ -173,8 +207,7 @@ def analyze_local(skip_ai: bool = False) -> ApiResponse[dict]:
     try:
         result = _run_sync_aggregate(repo_path, repo_url, skip_ai=skip_ai)
     except Exception as e:
-        import traceback
-        err = _make_error(repo_url, f"本地分析失败: {e}\n{traceback.format_exc()}")
+        err = _make_error(repo_url, f"本地分析失败: {e}")
         cache.set(repo_url, err)
         return ApiResponse(code=-1, message=str(e), data=err)
 
@@ -218,7 +251,10 @@ async def analyze_status(
             data={"status": "completed", "result": result},
         )
 
-    if task_id in _pending_tasks:
+    with _pending_lock:
+        is_pending = task_id in _pending_tasks
+
+    if is_pending:
         return ApiResponse(
             code=0,
             message="pending",

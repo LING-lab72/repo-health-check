@@ -58,6 +58,18 @@ def test_cache_clear():
     assert len(c) == 0
 
 
+def test_cache_returns_deep_copy():
+    c = AnalysisCache(ttl=3600)
+    url = "https://github.com/a/b"
+    c.set(url, {"dimensions": [{"score": 80}]})
+
+    result = c.get(url)
+    assert result is not None
+    result["dimensions"][0]["score"] = 0
+
+    assert c.get(url)["dimensions"][0]["score"] == 80
+
+
 def test_cache_capacity_eviction():
     c = AnalysisCache(ttl=-1, max_size=3)
     c.set("url1", {"score": 1})

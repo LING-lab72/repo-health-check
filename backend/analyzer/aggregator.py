@@ -62,7 +62,10 @@ def _compute_health_score(dimensions: list[dict[str, Any]]) -> float:
 
 
 async def aggregate(
-    repo_path: Path, repo_url: str, skip_ai: bool = False
+    repo_path: Path,
+    repo_url: str,
+    skip_ai: bool = False,
+    ai_api_key: str | None = None,
 ) -> dict[str, Any]:
     """Run all 6 analyzers against a repo and produce aggregated health report."""
     loop = asyncio.get_running_loop()
@@ -93,7 +96,11 @@ async def aggregate(
 
     # AI diagnosis (skip if requested)
     try:
-        ai_diagnosis_result = await ai_diagnose(dimensions, repo_url) if not skip_ai else []
+        ai_diagnosis_result = (
+            await ai_diagnose(dimensions, repo_url, api_key_override=ai_api_key)
+            if not skip_ai
+            else []
+        )
     except Exception:
         ai_diagnosis_result = []
 

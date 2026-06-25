@@ -1,12 +1,35 @@
 """Export analysis report as downloadable HTML file."""
+from __future__ import annotations
+
 import html
+import math
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response
 
+from backend.constants import BADGE_COLORS, DEFAULT_BADGE_COLOR
 from backend.services.cache import cache
 
 router = APIRouter(prefix="/api")
+
+
+def _safe_number(
+    value: object,
+    default: float = 0.0,
+    min_value: float = 0.0,
+    max_value: float = 100.0,
+) -> float:
+    """Convert untrusted values to a bounded number for text/style contexts."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        number = default
+    return max(min_value, min(max_value, number))
+
+
+def _severity(value: object) -> str:
+    sev = str(value)
+    return sev if sev in {"high", "medium", "low"} else "medium"
 
 
 @router.get("/export/{repo_hash}")
@@ -15,76 +38,160 @@ async def export_report(repo_hash: str):
     result = cache.get_by_hash(repo_hash)
     if not result:
         from backend.services.storage import get_by_url_hash
+
         result = get_by_url_hash(repo_hash)
     if not result:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    health = result["health_score"]
-    badge = result["badge_level"]
-    color = result.get("badge_color", "lightgrey")
+    health = _safe_number(result.get("health_score", 0))
+    badge = result.get("badge_level", "?")
+    color = str(result.get("badge_color", "lightgrey"))
     dimensions = result.get("dimensions", [])
     diagnosis = result.get("ai_diagnosis", [])
-    repo = result.get("repo_url", "")
+    repo = str(result.get("repo_url", ""))
 
-    # Escape all dynamic text fields to prevent HTML injection (XSS)
-    repo_safe = html.escape(str(repo), quote=True)
+    repo_safe = html.escape(repo, quote=True)
     badge_safe = html.escape(str(badge), quote=True)
     analyzed_at_safe = html.escape(str(result.get("analyzed_at", "")), quote=True)
+    badge_color = BADGE_COLORS.get(color, DEFAULT_BADGE_COLOR)
 
-    _badge_colors = {"brightgreen": "#4c1", "yellow": "#dfb317", "orange": "#fe7d37", "red": "#e05d44"}
-
-    dim_rows = "".join(
-        f"""<tr>
-            <td>{html.escape(str(d.get('dimension', '')), quote=True)}</td>
-            <td>{d.get('score', 0)}/100</td>
-            <td><div style="background:#e5e7eb;border-radius:4px;height:12px"><div style="background:{'#22c55e' if d.get('score', 0)>=75 else '#eab308' if d.get('score', 0)>=50 else '#ef4444'};width:{d.get('score', 0)}%;height:12px;border-radius:4px"></div></div></td>
-        </tr>"""
-        for d in dimensions
-    )
-
-    diag_rows = "".join(
-        f"""<div style="padding:8px 0;border-bottom:1px solid #e5e7eb">
-            <strong style="color:{'#ef4444' if s.get('severity')=='high' else '#eab308' if s.get('severity')=='medium' else '#3b82f6'}">[{html.escape(str(s.get('severity', '')).upper(), quote=True)}]</strong>
-            {html.escape(str(s.get('advice', '')), quote=True)}
-            <span style="color:#888;font-size:12px">置信度 {s.get('confidence', 0)}% · 约 {s.get('estimated_hours', 0)}h</span>
-        </div>"""
-        for s in diagnosis
-    )
+    dim_rows = "".join(_dimension_row(d) for d in dimensions)
+    diag_rows = "".join(_diagnosis_row(s) for s in diagnosis)
+    radar_svg = _radar_svg(dimensions)
 
     html_content = f"""<!DOCTYPE html>
 <html lang="zh">
 <head><meta charset="utf-8"><title>Repo Health Report - {repo_safe}</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:32px;max-width:680px;margin:0 auto;color:#1e293b}}
-h1{{font-size:24px;margin-bottom:4px}}
-.sub{{color:#64748b;font-size:13px;margin-bottom:20px}}
-.score{{font-size:32px;font-weight:700;color:{_badge_colors.get(color, '#9f9f9f')}}}
-.badge{{display:inline-block;padding:2px 12px;border-radius:10px;background:{_badge_colors.get(color, '#9f9f9f')};color:#fff;font-weight:700;font-size:14px;margin-left:8px;vertical-align:super}}
-h2{{font-size:16px;margin:20px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2e8f0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f8fafc;color:#172033;padding:32px}}
+.shell{{max-width:920px;margin:0 auto;background:#fff;border:1px solid #e2e8f0;border-radius:18px;overflow:hidden;box-shadow:0 18px 50px rgba(15,23,42,.08)}}
+.hero{{padding:34px 38px;background:linear-gradient(135deg,#111827,#312e81);color:#fff}}
+h1{{font-size:28px;margin-bottom:8px}}
+.sub{{color:#cbd5e1;font-size:13px;word-break:break-all}}
+.summary{{display:flex;gap:28px;align-items:center;flex-wrap:wrap;margin-top:24px}}
+.score{{font-size:54px;line-height:1;font-weight:850;color:#fff}}
+.badge{{display:inline-block;padding:5px 14px;border-radius:999px;background:{badge_color};color:#fff;font-weight:800;font-size:14px}}
+.content{{padding:34px 38px}}
+.grid{{display:grid;grid-template-columns:minmax(260px,1fr) minmax(280px,1.2fr);gap:28px;align-items:center}}
+h2{{font-size:17px;margin:26px 0 14px;color:#0f172a}}
 table{{width:100%;border-collapse:collapse}}
-td{{padding:8px 0;font-size:14px}}td:first-child{{font-weight:600;width:160px}}td:last-child{{width:200px}}
-@media print{{body{{padding:16px}}@page{{margin:1cm}}}}
+td{{padding:10px 0;font-size:14px;border-bottom:1px solid #edf2f7}}td:first-child{{font-weight:700;width:150px}}td:last-child{{width:210px}}
+.bar{{background:#e5e7eb;border-radius:999px;height:12px;overflow:hidden}}
+.fill{{height:12px;border-radius:999px}}
+.diagnosis{{padding:12px 0;border-bottom:1px solid #e5e7eb;font-size:14px;line-height:1.6}}
+.meta{{color:#64748b;font-size:12px;margin-left:8px}}
+.footer{{margin-top:28px;color:#94a3b8;font-size:12px}}
+@media (max-width:760px){{body{{padding:14px}}.content,.hero{{padding:24px}}.grid{{grid-template-columns:1fr}}.score{{font-size:42px}}}}
+@media print{{body{{padding:0;background:#fff}}.shell{{box-shadow:none;border:0}}@page{{margin:1cm}}}}
 </style></head>
 <body>
+<main class="shell">
+<section class="hero">
 <h1>Repo Health Report</h1>
 <p class="sub">{repo_safe}</p>
-<div><span class="score">{health}/100</span><span class="badge">{badge_safe}</span></div>
-<h2>六维度评分</h2>
+<div class="summary"><span class="score">{health:g}/100</span><span class="badge">{badge_safe}</span></div>
+</section>
+<section class="content">
+<div class="grid">
+<div>{radar_svg}</div>
+<div>
+<h2>Dimension Scores</h2>
 <table>{dim_rows}</table>
-{('<h2>AI 诊断建议</h2>' + diag_rows) if diag_rows else ''}
-<p style="margin-top:24px;color:#94a3b8;font-size:12px">Generated by Repo Health Check · {analyzed_at_safe[:10]}</p>
+</div>
+</div>
+{('<h2>AI Diagnosis</h2>' + diag_rows) if diag_rows else ''}
+<p class="footer">Generated by Repo Health Check - {analyzed_at_safe[:10]}</p>
+</section>
+</main>
 </body></html>"""
 
-    # Build a safe filename: strip protocol, replace slashes, remove any
-    # characters that could break the Content-Disposition header.
-    _raw_name = repo.replace("https://github.com/", "").replace("/", "-")
-    _safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._")
-    filename = "".join(c if c in _safe_chars else "_" for c in _raw_name) + "-health-report.html"
+    raw_name = repo.replace("https://github.com/", "").replace("/", "-")
+    safe_chars = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._")
+    filename = "".join(c if c in safe_chars else "_" for c in raw_name) + "-health-report.html"
     return Response(
         content=html_content,
         media_type="text/html",
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
-        },
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _dimension_row(dimension: object) -> str:
+    d = dimension if isinstance(dimension, dict) else {}
+    score = _safe_number(d.get("score", 0))
+    color = "#22c55e" if score >= 75 else "#eab308" if score >= 50 else "#ef4444"
+    name = html.escape(str(d.get("dimension", "")), quote=True)
+    return f"""<tr>
+            <td>{name}</td>
+            <td>{score:g}/100</td>
+            <td><div class="bar"><div class="fill" style="background:{color};width:{score:g}%"></div></div></td>
+        </tr>"""
+
+
+def _diagnosis_row(suggestion: object) -> str:
+    s = suggestion if isinstance(suggestion, dict) else {}
+    sev = _severity(s.get("severity", "medium"))
+    color = "#ef4444" if sev == "high" else "#eab308" if sev == "medium" else "#3b82f6"
+    advice = html.escape(str(s.get("advice", "")), quote=True)
+    confidence = _safe_number(s.get("confidence", 0))
+    hours = _safe_number(s.get("estimated_hours", 0), max_value=1000)
+    return f"""<div class="diagnosis">
+            <strong style="color:{color}">[{html.escape(sev.upper(), quote=True)}]</strong>
+            {advice}
+            <span class="meta">confidence {confidence:g}% - about {hours:g}h</span>
+        </div>"""
+
+
+def _radar_svg(dimensions: object) -> str:
+    dims = dimensions if isinstance(dimensions, list) else []
+    points: list[tuple[str, float]] = []
+    for item in dims[:8]:
+        d = item if isinstance(item, dict) else {}
+        name = str(d.get("dimension", ""))
+        score = _safe_number(d.get("score", 0))
+        points.append((name, score))
+
+    if len(points) < 3:
+        return '<div style="color:#64748b;font-size:14px">Not enough dimensions for radar chart.</div>'
+
+    cx = cy = 160
+    radius = 110
+
+    def coord(index: int, value: float) -> tuple[float, float]:
+        angle = -math.pi / 2 + (2 * math.pi * index / len(points))
+        scaled = radius * value / 100
+        return cx + math.cos(angle) * scaled, cy + math.sin(angle) * scaled
+
+    grid = []
+    for value in (25, 50, 75, 100):
+        ring = " ".join(f"{coord(i, value)[0]:.1f},{coord(i, value)[1]:.1f}" for i in range(len(points)))
+        grid.append(f'<polygon points="{ring}" fill="none" stroke="#dbe4f0" stroke-width="1"/>')
+
+    axes = []
+    labels = []
+    for i, (name, _) in enumerate(points):
+        x, y = coord(i, 100)
+        axes.append(f'<line x1="{cx}" y1="{cy}" x2="{x:.1f}" y2="{y:.1f}" stroke="#e2e8f0"/>')
+        label_x, label_y = coord(i, 116)
+        anchor = "middle"
+        if label_x < cx - 18:
+            anchor = "end"
+        elif label_x > cx + 18:
+            anchor = "start"
+        labels.append(
+            f'<text x="{label_x:.1f}" y="{label_y:.1f}" text-anchor="{anchor}" '
+            f'font-size="11" fill="#475569">{html.escape(name, quote=True)}</text>'
+        )
+
+    polygon = " ".join(f"{coord(i, score)[0]:.1f},{coord(i, score)[1]:.1f}" for i, (_, score) in enumerate(points))
+    dots = "".join(
+        f'<circle cx="{coord(i, score)[0]:.1f}" cy="{coord(i, score)[1]:.1f}" r="3" fill="#4f46e5"/>'
+        for i, (_, score) in enumerate(points)
+    )
+    return (
+        '<svg viewBox="0 0 320 320" role="img" aria-label="Dimension radar chart" '
+        'style="width:100%;max-width:360px;height:auto">'
+        f'{"".join(grid)}{"".join(axes)}'
+        f'<polygon points="{polygon}" fill="rgba(79,70,229,.22)" stroke="#4f46e5" stroke-width="3"/>'
+        f'{dots}{"".join(labels)}</svg>'
     )

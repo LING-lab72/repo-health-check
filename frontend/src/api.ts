@@ -1,5 +1,5 @@
 /** Base URL for API requests. Uses Vite env var in production, defaults to backend. */
-export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+export const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8002';
 
 /** Generate SHA-256 hash prefix matching backend (storage.py). */
 export async function sha256Prefix(input: string, length = 12): Promise<string> {

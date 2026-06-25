@@ -22,9 +22,13 @@ def _check_lockfiles(root: Path) -> dict[str, Any]:
     """Check for dependency lock files."""
     found: list[str] = []
     for lockfile in LOCK_FILES:
-        p = root / lockfile
-        if p.exists():
-            found.append(lockfile)
+        for p in root.rglob(lockfile):
+            if any(seg in (".git", "node_modules", "__pycache__", ".venv", "venv", "dist")
+                   for seg in p.parts):
+                continue
+            found.append(str(p.relative_to(root)))
+            if len(found) >= MAX_FILES:
+                break
 
     # Score: more lockfiles = better dependency management
     if len(found) >= 3:
@@ -42,7 +46,7 @@ def _check_lockfiles(root: Path) -> dict[str, Any]:
 
     return {
         "score": score,
-        "lockfiles": found,
+        "lockfiles": sorted(set(found)),
         "count": len(found),
         "issues": issues,
     }
@@ -117,7 +121,8 @@ def _run_pip_audit(root: Path) -> dict[str, Any]:
         req_files.append(p)
     if not req_files:
         return {
-            "score": 60,
+            "score": 100,
+            "skipped": True,
             "issues": ["未找到 requirements.txt，无法运行 pip-audit"],
             "vulnerabilities": 0,
         }
@@ -164,9 +169,72 @@ def _run_pip_audit(root: Path) -> dict[str, Any]:
 
     return {
         "score": score,
+        "skipped": False,
         "vulnerabilities": vuln_count,
         "issues": issues,
     }
+
+
+def _run_npm_audit(root: Path) -> dict[str, Any]:
+    """Run npm audit for projects with package-lock.json files."""
+    lockfiles = [
+        p for p in root.rglob("package-lock.json")
+        if not any(seg in (".git", "node_modules", "dist") for seg in p.parts)
+    ][:MAX_FILES]
+    if not lockfiles:
+        return {
+            "score": 100,
+            "skipped": True,
+            "issues": ["未找到 package-lock.json，跳过 npm audit"],
+            "vulnerabilities": 0,
+        }
+
+    total_vulns = 0
+    issues: list[str] = []
+
+    for lockfile in lockfiles[:5]:
+        try:
+            result = subprocess.run(
+                ["npm", "audit", "--json", "--package-lock-only", "--omit", "dev"],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                cwd=str(lockfile.parent),
+            )
+        except FileNotFoundError:
+            return {"score": 50, "issues": ["npm 未安装，跳过 npm audit"], "vulnerabilities": 0}
+        except subprocess.TimeoutExpired:
+            issues.append(f"{lockfile.parent.name}: npm audit 扫描超时")
+            continue
+
+        if not result.stdout.strip():
+            continue
+
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            issues.append(f"{lockfile.parent.name}: npm audit 输出解析失败")
+            continue
+
+        metadata = data.get("metadata", {}).get("vulnerabilities", {})
+        vuln_count = sum(
+            int(metadata.get(k, 0))
+            for k in ("low", "moderate", "high", "critical")
+        )
+        total_vulns += vuln_count
+        if vuln_count:
+            issues.append(f"{lockfile.parent.relative_to(root)} 有 {vuln_count} 个 npm 依赖漏洞")
+
+    if total_vulns == 0:
+        score = 100
+    elif total_vulns <= 2:
+        score = 70
+    elif total_vulns <= 5:
+        score = 40
+    else:
+        score = 15
+
+    return {"score": score, "skipped": False, "vulnerabilities": total_vulns, "issues": issues[:10]}
 
 
 class DependencySecurityAnalyzer(BaseAnalyzer):
@@ -175,18 +243,33 @@ class DependencySecurityAnalyzer(BaseAnalyzer):
     def analyze(self, repo_path: Path) -> AnalysisResult:
         bandit_result = _run_bandit(repo_path)
         pipaudit_result = _run_pip_audit(repo_path)
+        npm_audit_result = _run_npm_audit(repo_path)
         lockfile_result = _check_lockfiles(repo_path)
+        applicable_dependency_scores = [
+            r["score"]
+            for r in (pipaudit_result, npm_audit_result)
+            if not r.get("skipped")
+        ]
+        dependency_audit_score = (
+            min(applicable_dependency_scores) if applicable_dependency_scores else 60
+        )
 
         scores = {
             "known_vulnerabilities": bandit_result["score"],
-            "dependency_freshness": pipaudit_result["score"],
+            "dependency_freshness": dependency_audit_score,
             "lockfile_present": lockfile_result["score"],
         }
 
         scoring = weighted_average_score(scores, "dependency_security")
+        dependency_issues: list[str] = []
+        if not pipaudit_result.get("skipped"):
+            dependency_issues += pipaudit_result.get("issues", [])
+        if not npm_audit_result.get("skipped"):
+            dependency_issues += npm_audit_result.get("issues", [])
+
         all_issues = (
             bandit_result.get("issues", [])
-            + pipaudit_result.get("issues", [])
+            + dependency_issues
             + lockfile_result.get("issues", [])
         )
 
@@ -197,6 +280,7 @@ class DependencySecurityAnalyzer(BaseAnalyzer):
                 "sub_scores": scoring["sub_scores"],
                 "bandit_scan": bandit_result,
                 "pip_audit": pipaudit_result,
+                "npm_audit": npm_audit_result,
                 "lockfiles": lockfile_result,
             },
             issues=all_issues[:20],

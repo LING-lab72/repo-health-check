@@ -7,7 +7,10 @@ from typing import Any
 
 from itsdangerous import URLSafeSerializer
 
-SECRET = os.environ.get("SESSION_SECRET", "dev-only-secret-change-in-production")
+SECRET = os.environ.get("SESSION_SECRET")
+if not SECRET:
+    raise RuntimeError("SESSION_SECRET must be set; refusing to start with an insecure default")
+
 _serializer = URLSafeSerializer(SECRET)
 
 

@@ -44,7 +44,9 @@ function getSavedTheme(): 'dark' | 'light' {
   try {
     const saved = localStorage.getItem('theme');
     if (saved === 'light') return 'light';
-  } catch {}
+  } catch {
+    // localStorage can be unavailable in private browsing or tests.
+  }
   return 'dark';
 }
 
@@ -65,7 +67,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, status: 'error', error: action.payload };
     case 'TOGGLE_THEME': {
       const next = state.theme === 'dark' ? 'light' : 'dark';
-      try { localStorage.setItem('theme', next); } catch {}
+      try {
+        localStorage.setItem('theme', next);
+      } catch {
+        // Theme still changes in memory when persistence is unavailable.
+      }
       return { ...state, theme: next };
     }
     case 'RESET':

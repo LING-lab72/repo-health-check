@@ -18,13 +18,10 @@ interface Props {
 export default function RadarChart({ dimensions }: Props) {
   const chartRef = useRef<HTMLDivElement>(null);
   const chartInstance = useRef<echarts.ECharts | null>(null);
-
-  if (!dimensions || dimensions.length === 0) {
-    return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>暂无数据</div>;
-  }
+  const hasData = !!dimensions?.length;
 
   useEffect(() => {
-    if (!chartRef.current) return;
+    if (!chartRef.current || !hasData) return;
     const chart = echarts.init(chartRef.current);
     chartInstance.current = chart;
 
@@ -66,16 +63,27 @@ export default function RadarChart({ dimensions }: Props) {
       chart.dispose();
       chartInstance.current = null;
     };
-  }, [dimensions]);
+  }, [dimensions, hasData]);
 
   // Resize on container or window resize
   useEffect(() => {
     const el = chartRef.current;
-    if (!el) return;
+    if (!el || !hasData) return;
     const observer = new ResizeObserver(() => chartInstance.current?.resize());
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [hasData]);
 
-  return <div ref={chartRef} style={{ width: '100%', height: 400 }} />;
+  if (!hasData) {
+    return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>暂无数据</div>;
+  }
+
+  return (
+    <div
+      ref={chartRef}
+      role="img"
+      aria-label="仓库健康度六维雷达图"
+      style={{ width: '100%', height: 400 }}
+    />
+  );
 }

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -23,9 +24,10 @@ def run_npx(repo_path: Path, args: list[str]) -> dict[str, Any] | None:
 
     Returns parsed JSON or None on failure.
     """
+    npx_install_flag = "--yes" if os.environ.get("ALLOW_NPX_INSTALL") == "1" else "--no-install"
     try:
         result = subprocess.run(
-            ["npx", "--yes"] + args,
+            ["npx", npx_install_flag] + args,
             capture_output=True,
             text=True,
             timeout=TIMEOUT,

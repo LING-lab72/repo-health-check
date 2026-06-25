@@ -5,21 +5,11 @@ import html
 
 from fastapi import APIRouter, Response
 
+from backend.constants import BADGE_COLORS, DEFAULT_BADGE_COLOR
 from backend.services.cache import cache
 from backend.services.storage import get_by_url_hash
 
 router = APIRouter(prefix="/api")
-
-# shields.io color values
-BADGE_COLORS: dict[str, str] = {
-    "brightgreen": "#4c1",
-    "green": "#97ca00",
-    "yellow": "#dfb317",
-    "yellowgreen": "#a4a61d",
-    "orange": "#fe7d37",
-    "red": "#e05d44",
-    "lightgrey": "#9f9f9f",
-}
 
 SVG_TEMPLATE = """<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="20">
   <linearGradient id="s" x2="0" y2="100%">
@@ -90,7 +80,7 @@ async def get_badge(repo_hash: str):
     if result is not None:
         level = result.get("badge_level", "?")
         color_key = result.get("badge_color", "lightgrey")
-        color_hex = BADGE_COLORS.get(color_key, "#9f9f9f")
+        color_hex = BADGE_COLORS.get(color_key, DEFAULT_BADGE_COLOR)
         value = level
     else:
         color_hex = BADGE_COLORS["lightgrey"]

@@ -15,6 +15,13 @@ def test_build_svg_unknown():
     assert "unknown" in svg
 
 
+def test_build_svg_escapes_dynamic_text():
+    svg = _build_svg(label='<script>alert(1)</script>', value='<img src=x onerror=1>', color_hex="#4c1")
+    assert "<script>" not in svg
+    assert "<img" not in svg
+    assert "&lt;script&gt;" in svg
+
+
 def test_badge_colors_all_defined():
     assert BADGE_COLORS["brightgreen"] == "#4c1"
     assert BADGE_COLORS["red"] == "#e05d44"
