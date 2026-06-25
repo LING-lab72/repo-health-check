@@ -52,8 +52,18 @@ Repo Health Check 同时提供 GitHub Actions、GitLink/GitLab 风格 CI、Harne
 配置文件：
 
 - `.gitlab-ci.yml`
+- `devops/gitlink/backend-ci.sh`
+- `devops/gitlink/frontend-ci.sh`
+- `devops/gitlink/package-release.sh`
+- `docs/gitlink-devops-setup.md`
 
-该文件采用 GitLab CI 兼容语法，适合在支持 GitLab Runner 或同类流水线语法的平台中运行；GitLink 仓库可保留该文件作为 CI/CD 交付物和迁移配置依据。
+`.gitlab-ci.yml` 采用 GitLab CI 兼容语法，适合在支持 GitLab Runner 或同类流水线语法的平台中运行。GitLink 仓库的 DevOps 构建界面通常需要在网页端手动新建构建任务，因此本项目额外提供 `devops/gitlink/*.sh`，可直接复制到 GitLink DevOps 构建步骤中使用。
+
+GitLink 网页端配置步骤见：
+
+```text
+docs/gitlink-devops-setup.md
+```
 
 ### Pipeline 阶段
 
