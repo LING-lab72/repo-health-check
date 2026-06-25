@@ -1,0 +1,34 @@
+version: 2
+name: 未命名项目
+description: ""
+global:
+  concurrent: 1
+trigger:
+  webhook: gitlink@1.0.0
+  event:
+    - ref: push
+      ruleset-operator: AND
+workflow:
+  - ref: start
+    name: 开始
+    task: start
+  - ref: backend_ci
+    name: 后端CI
+    image: python:3.11-slim
+    script:
+      - sh devops/gitlink/backend-ci.sh
+    needs:
+      - start
+  - ref: frontend_ci
+    name: 前端CI
+    image: node:20
+    script:
+      - sh devops/gitlink/frontend-ci.sh
+    needs:
+      - backend_ci
+  - ref: end
+    name: 结束
+    task: end
+    needs:
+      - frontend_ci
+
