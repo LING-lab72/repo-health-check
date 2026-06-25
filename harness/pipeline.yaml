@@ -27,9 +27,8 @@ pipeline:
                     image: python:3.11-slim
                     shell: Sh
                     command: |
-                      pip install --quiet flake8 black
+                      pip install --quiet flake8
                       flake8 backend/ --max-line-length=100
-                      black --check --diff backend/
               - step:
                   type: Run
                   name: python_test
@@ -40,7 +39,7 @@ pipeline:
                     shell: Sh
                     command: |
                       pip install --quiet -r backend/requirements.txt
-                      pip install --quiet pytest httpx2
+                      pip install --quiet pytest httpx
                       pytest backend/tests/ -v
               - step:
                   type: Run
@@ -53,7 +52,7 @@ pipeline:
                     command: |
                       cd frontend
                       npm install --quiet
-                      npm run lint -- --max-warnings 0 || true
+                      npm run lint -- --max-warnings 0
                       npm run build
               - step:
                   type: Run

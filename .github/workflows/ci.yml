@@ -4,6 +4,15 @@ on:
   push:
     branches: [main, master]
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SESSION_SECRET: ci-session-secret
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "20"
 
 jobs:
   backend:
@@ -13,7 +22,9 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
 
       - name: Install backend dependencies
         run: |
@@ -21,19 +32,21 @@ jobs:
           pip install -r backend/requirements.txt pytest flake8
 
       - name: Lint backend
-        env:
-          SESSION_SECRET: ci-session-secret
         run: flake8 backend scripts --config backend/.flake8 --extend-ignore E501
 
       - name: Run backend tests
-        env:
-          SESSION_SECRET: ci-session-secret
         run: pytest backend/tests -q
 
       - name: Run E2E smoke test
-        env:
-          SESSION_SECRET: ci-session-secret
         run: python scripts/e2e_test.py
+
+      - name: Upload E2E report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: e2e_report.json
+          if-no-files-found: ignore
 
   frontend:
     runs-on: ubuntu-latest
@@ -45,7 +58,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
@@ -60,3 +73,21 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Upload frontend build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          if-no-files-found: error
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Docker builds
+        run: |
+          docker build -t repo-health-backend-ci ./backend
+          docker build -t repo-health-frontend-ci ./frontend

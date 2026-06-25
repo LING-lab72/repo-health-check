@@ -1,0 +1,68 @@
+stages:
+  - lint
+  - test
+  - build
+  - package
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  SESSION_SECRET: "gitlink-ci-session-secret"
+
+cache:
+  paths:
+    - .cache/pip
+    - frontend/node_modules/
+
+backend_lint:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r backend/requirements.txt flake8
+  script:
+    - flake8 backend scripts --config backend/.flake8 --extend-ignore E501
+
+backend_test:
+  stage: test
+  image: python:3.11-slim
+  before_script:
+    - python -m pip install --upgrade pip
+    - pip install -r backend/requirements.txt pytest
+  script:
+    - pytest backend/tests -q
+    - python scripts/e2e_test.py
+  artifacts:
+    when: always
+    paths:
+      - e2e_report.json
+    expire_in: 7 days
+
+frontend_test_build:
+  stage: build
+  image: node:20
+  before_script:
+    - cd frontend
+    - npm ci
+  script:
+    - npm run lint
+    - npm test -- --run
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+    expire_in: 7 days
+
+release_package:
+  stage: package
+  image: alpine:3.20
+  needs:
+    - backend_test
+    - frontend_test_build
+  script:
+    - mkdir -p release
+    - tar -czf release/repo-health-frontend-dist.tar.gz -C frontend dist
+    - tar -czf release/repo-health-backend-source.tar.gz backend scripts sdd docker-compose.yml .env.example
+  artifacts:
+    paths:
+      - release/
+    expire_in: 14 days
