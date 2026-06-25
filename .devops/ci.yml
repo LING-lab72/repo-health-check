@@ -20,7 +20,7 @@ workflow:
     name: backend-ci
     image: docker.m.daocloud.io/library/python:3.11-slim
     script:
-      - sh devops/gitlink/backend-ci.sh
+      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/backend-ci.sh
     needs:
       - start
 
@@ -28,7 +28,7 @@ workflow:
     name: frontend-ci
     image: docker.m.daocloud.io/library/node:20
     script:
-      - sh devops/gitlink/frontend-ci.sh
+      - apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/frontend-ci.sh
     needs:
       - backend_ci
 
