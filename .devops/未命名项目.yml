@@ -1,44 +1,39 @@
 version: 2
-name: 未命名项目
-description: ""
+name: repo-health-ci
+description: Repo Health Check CI for GitLink/Jianmu
+
 global:
   concurrent: 1
+
 trigger:
   webhook: gitlink@1.0.0
   event:
     - ref: push
       ruleset-operator: AND
+
 workflow:
   - ref: start
-    name: 开始
+    name: start
     task: start
-  - ref: shell_0
-    name: 后端代码检查 & 测试
-    image: library/python
+
+  - ref: backend_ci
+    name: backend-ci
+    image: docker.m.daocloud.io/library/python:3.11-bookworm
     script:
-      - pip install --disable-pip-version-check -i
-        https://mirrors.aliyun.com/pypi/simple/ --trusted-host
-        mirrors.aliyun.com flake8 pytest -r backend/requirements.txt
-      - flake8 backend scripts --config backend/.flake8 --extend-ignore=E501
-      - pytest backend/tests -q
-      - ""
+      - git --version && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/backend-ci.sh
     needs:
       - start
-  - ref: shell_1
-    name: 前端检查 & 构建
-    image: library/node
+
+  - ref: frontend_ci
+    name: frontend-ci
+    image: docker.m.daocloud.io/library/node:20-bookworm
     script:
-      - cd frontend
-      - npm config set registry https://registry.npmmirror.com
-      - npm ci --no-audit --progress=false --fetch-timeout=120000
-      - npm run lint
-      - npm run build
-      - ""
+      - git --version && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/frontend-ci.sh
     needs:
-      - shell_0
+      - backend_ci
+
   - ref: end
-    name: 结束
+    name: end
     task: end
     needs:
-      - shell_1
-
+      - frontend_ci
