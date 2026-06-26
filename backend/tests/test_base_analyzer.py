@@ -20,7 +20,16 @@ ALL_ANALYZERS = [
     EngineeringAnalyzer,
 ]
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+
+def _find_repo_root() -> Path:
+    """Find the project root even when pytest changes rootdir in CI."""
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "backend").is_dir() and (parent / "frontend").is_dir():
+            return parent
+    return Path(__file__).resolve().parent.parent.parent
+
+
+REPO_ROOT = _find_repo_root()
 
 
 def test_base_analyzer_is_abstract():

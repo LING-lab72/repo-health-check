@@ -45,40 +45,51 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def _ensure_schema(conn: sqlite3.Connection) -> None:
+    """Create all tables if a test or deployment starts with an empty DB file."""
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            repo_url TEXT NOT NULL,
+            health_score REAL NOT NULL,
+            badge_level TEXT NOT NULL,
+            badge_color TEXT NOT NULL,
+            analyzed_at TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_history_repo_time ON history(repo_url, analyzed_at)"
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS votes (
+            repo_url TEXT PRIMARY KEY,
+            count INTEGER NOT NULL DEFAULT 0
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS vote_cooldowns (
+            voter_id TEXT PRIMARY KEY,
+            repo_url TEXT NOT NULL,
+            last_time REAL NOT NULL
+        )
+        """
+    )
+
+
+def _connect_ready() -> sqlite3.Connection:
+    conn = _connect()
+    _ensure_schema(conn)
+    return conn
+
+
 def _init_db() -> None:
     with _lock, _connect() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                repo_url TEXT NOT NULL,
-                health_score REAL NOT NULL,
-                badge_level TEXT NOT NULL,
-                badge_color TEXT NOT NULL,
-                analyzed_at TEXT NOT NULL
-            )
-            """
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_history_repo_time ON history(repo_url, analyzed_at)"
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS votes (
-                repo_url TEXT PRIMARY KEY,
-                count INTEGER NOT NULL DEFAULT 0
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS vote_cooldowns (
-                voter_id TEXT PRIMARY KEY,
-                repo_url TEXT NOT NULL,
-                last_time REAL NOT NULL
-            )
-            """
-        )
+        _ensure_schema(conn)
         _migrate_json_if_empty(conn)
 
 
@@ -138,7 +149,7 @@ def _row_to_entry(row: sqlite3.Row) -> dict[str, Any]:
 
 def load() -> list[dict[str, Any]]:
     """Load all history entries from SQLite."""
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         rows = conn.execute(
             """
             SELECT repo_url, health_score, badge_level, badge_color, analyzed_at
@@ -151,7 +162,7 @@ def load() -> list[dict[str, Any]]:
 
 def save_entry(entry: dict[str, Any]) -> None:
     """Append a new analysis entry."""
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         conn.execute("BEGIN IMMEDIATE")
         _insert_entry(conn, entry)
         conn.commit()
@@ -165,7 +176,7 @@ def _trend(current: float, previous: float | None) -> str:
 
 def get_total_count() -> int:
     """Count repositories represented in the leaderboard."""
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         row = conn.execute("SELECT COUNT(DISTINCT repo_url) AS total FROM history").fetchone()
     return int(row["total"] if row else 0)
 
@@ -180,7 +191,7 @@ def get_all(limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
         page_clause = "LIMIT ? OFFSET ?"
         params.extend([safe_limit, safe_offset])
 
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         rows = conn.execute(
             f"""
             WITH ranked AS (
@@ -229,7 +240,7 @@ def get_all(limit: int | None = None, offset: int = 0) -> list[dict[str, Any]]:
 
 def get_history(repo_url: str) -> list[dict[str, Any]]:
     """Get all historical entries for a repo, sorted by analyzed_at ascending."""
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         rows = conn.execute(
             """
             SELECT repo_url, health_score, badge_level, badge_color, analyzed_at
@@ -245,7 +256,7 @@ def get_history(repo_url: str) -> list[dict[str, Any]]:
 def cast_vote(repo_url: str, voter_id: str) -> int | None:
     """Increment vote count. Returns new count, or None if cooldown active."""
     now = time.time()
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         conn.execute("BEGIN IMMEDIATE")
         cooldown = conn.execute(
             "SELECT repo_url, last_time FROM vote_cooldowns WHERE voter_id = ?",
@@ -292,7 +303,7 @@ def get_by_url_hash(url_hash: str) -> dict[str, Any] | None:
 
 def clear_all() -> None:
     """Clear SQLite storage. Intended for tests and local maintenance."""
-    with _lock, _connect() as conn:
+    with _lock, _connect_ready() as conn:
         conn.execute("BEGIN IMMEDIATE")
         conn.execute("DELETE FROM vote_cooldowns")
         conn.execute("DELETE FROM votes")
