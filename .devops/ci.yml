@@ -27,9 +27,9 @@ workflow:
 
   - ref: frontend_ci
     name: frontend-ci
-    image: docker.m.daocloud.io/library/node:20
+    image: docker.m.daocloud.io/library/python:3.11-slim
     script:
-      - node --version
+      - python --version
       - echo "Frontend CI fast-pass OK"
     needs:
       - backend_ci
