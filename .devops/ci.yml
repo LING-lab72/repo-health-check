@@ -1,5 +1,5 @@
 version: 2
-name: repo-health-fast-pass
+name: ci
 description: Fast pass pipeline for GitLink/Jianmu demo
 
 global:
