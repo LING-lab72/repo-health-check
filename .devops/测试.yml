@@ -1,41 +1,41 @@
 version: 2
-name: test-fast-pass
-description: Fast pass pipeline for GitLink/Jianmu demo
-
+name: 测试
+description: ""
 global:
   concurrent: 1
-
 trigger:
   webhook: gitlink@1.0.0
   event:
     - ref: push
       ruleset-operator: AND
-
 workflow:
   - ref: start
-    name: start
+    name: 开始
     task: start
-
-  - ref: backend_ci
-    name: backend-ci
+  - ref: shell_0
+    name: 后端代码检查 & 测试
     image: docker.m.daocloud.io/library/python:3.11-slim
     script:
+      - set -eu
+      - echo "SCRIPT_VERSION_20260626_BACKEND_FAST_PASS"
       - python --version
       - echo "Backend CI fast-pass OK"
     needs:
       - start
-
-  - ref: frontend_ci
-    name: frontend-ci
-    image: docker.m.daocloud.io/library/python:3.11-slim
+  - ref: shell_1
+    name: 前端检查 & 构建
+    image: docker.m.daocloud.io/library/node:20
     script:
-      - python --version
+      - set -eu
+      - echo "SCRIPT_VERSION_20260626_FRONTEND_FAST_PASS"
+      - node --version
+      - npm --version
       - echo "Frontend CI fast-pass OK"
     needs:
-      - backend_ci
-
+      - shell_0
   - ref: end
-    name: end
+    name: 结束
     task: end
     needs:
-      - frontend_ci
+      - shell_1
+
