@@ -1,0 +1,44 @@
+version: 2
+name: 未命名项目
+description: ""
+global:
+  concurrent: 1
+trigger:
+  webhook: gitlink@1.0.0
+  event:
+    - ref: push
+      ruleset-operator: AND
+workflow:
+  - ref: start
+    name: 开始
+    task: start
+  - ref: shell_0
+    name: 后端代码检查 & 测试
+    image: python:3.13-slim
+    script:
+      - pip install --disable-pip-version-check -i
+        https://mirrors.aliyun.com/pypi/simple/ --trusted-host
+        mirrors.aliyun.com flake8 pytest -r backend/requirements.txt
+      - flake8 backend scripts --config backend/.flake8 --extend-ignore=E501
+      - pytest backend/tests -q
+      - ""
+    needs:
+      - start
+  - ref: shell_1
+    name: 前端检查 & 构建
+    image: node:18-slim
+    script:
+      - cd frontend
+      - npm config set registry https://registry.npmmirror.com
+      - npm ci --no-audit --progress=false --fetch-timeout=120000
+      - npm run lint
+      - npm run build
+      - ""
+    needs:
+      - shell_0
+  - ref: end
+    name: 结束
+    task: end
+    needs:
+      - shell_1
+
