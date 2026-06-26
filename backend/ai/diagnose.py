@@ -10,6 +10,14 @@ import httpx
 DEEPSEEK_BASE = "https://api.deepseek.com/v1"
 OPENAI_BASE = "https://api.openai.com/v1"
 TIMEOUT = 30.0
+PLACEHOLDER_KEYS = {
+    "",
+    "sk-your-deepseek-key-here",
+    "sk-your-openai-key-here",
+    "your-deepseek-api-key",
+    "your-openai-api-key",
+    "your-api-key",
+}
 
 PROMPT_RULES = """Rules:
 - severity: "high" for critical issues (score < 50), "medium" (50-70), "low" (>70)
@@ -28,18 +36,37 @@ SYSTEM_PROMPT = (
 )
 
 
+def _clean_api_key(key: str | None) -> str | None:
+    """Return a usable API key or None for empty/example placeholders."""
+    if not key:
+        return None
+    cleaned = key.strip()
+    if cleaned.lower() in PLACEHOLDER_KEYS:
+        return None
+    if "your-" in cleaned.lower() or "placeholder" in cleaned.lower():
+        return None
+    return cleaned
+
+
 def _get_client(api_key_override: str | None = None) -> tuple[str | None, str, str]:
     """Determine which LLM provider to use."""
-    if api_key_override:
-        return api_key_override, DEEPSEEK_BASE, "deepseek"
+    override_key = _clean_api_key(api_key_override)
+    if override_key:
+        return override_key, os.environ.get("DEEPSEEK_BASE_URL", DEEPSEEK_BASE), "deepseek"
 
-    deepseek_key = os.environ.get("DEEPSEEK_API_KEY")
+    deepseek_key = _clean_api_key(os.environ.get("DEEPSEEK_API_KEY"))
     if deepseek_key:
-        return deepseek_key, DEEPSEEK_BASE, "deepseek"
-    openai_key = os.environ.get("OPENAI_API_KEY")
+        return deepseek_key, os.environ.get("DEEPSEEK_BASE_URL", DEEPSEEK_BASE), "deepseek"
+    openai_key = _clean_api_key(os.environ.get("OPENAI_API_KEY"))
     if openai_key:
-        return openai_key, OPENAI_BASE, "openai"
+        return openai_key, os.environ.get("OPENAI_BASE_URL", OPENAI_BASE), "openai"
     return None, "", ""
+
+
+def get_configured_provider(api_key_override: str | None = None) -> str:
+    """Return the provider that would be used for this request."""
+    _key, _base_url, provider = _get_client(api_key_override)
+    return provider or "local_rules"
 
 
 def _build_user_prompt(dimensions: list[dict[str, Any]], repo_url: str) -> str:
@@ -79,7 +106,7 @@ def _parse_llm_response(text: str) -> list[dict[str, Any]]:
     return []
 
 
-def _post_process(suggestions: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _post_process(suggestions: list[dict[str, Any]], provider: str = "llm") -> list[dict[str, Any]]:
     """Validate, normalize and mark low-confidence suggestions."""
     result = []
     for s in suggestions:
@@ -106,6 +133,7 @@ def _post_process(suggestions: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "estimated_hours": max(1, estimated_hours),
             "confidence": confidence,
             "need_human_review": confidence < 70,
+            "provider": provider,
         })
     severity_order = {"high": 0, "medium": 1, "low": 2}
     result.sort(key=lambda x: (severity_order.get(x["severity"], 1), -x["confidence"]))
@@ -127,6 +155,7 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
                 "estimated_hours": 8,
                 "confidence": 85,
                 "need_human_review": False,
+                "provider": "local_rules",
             })
         elif score < 60:
             suggestions.append({
@@ -135,6 +164,7 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
                 "estimated_hours": 4,
                 "confidence": 70,
                 "need_human_review": False,
+                "provider": "local_rules",
             })
     if not suggestions:
         suggestions.append({
@@ -143,6 +173,7 @@ def _fallback_diagnosis(dimensions: list[dict[str, Any]]) -> list[dict[str, Any]
             "estimated_hours": 1,
             "confidence": 90,
             "need_human_review": False,
+            "provider": "local_rules",
         })
     return suggestions[:5]
 
@@ -181,6 +212,6 @@ async def ai_diagnose(
         suggestions = _parse_llm_response(content)
         if not suggestions:
             return _fallback_diagnosis(dimensions)
-        return _post_process(suggestions)
+        return _post_process(suggestions, provider=provider)
     except (httpx.TimeoutException, httpx.RequestError, Exception):
         return _fallback_diagnosis(dimensions)

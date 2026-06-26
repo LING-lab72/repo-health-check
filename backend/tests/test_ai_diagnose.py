@@ -10,6 +10,7 @@ from backend.ai.diagnose import (
     _parse_llm_response,
     _post_process,
     ai_diagnose,
+    get_configured_provider,
 )
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -36,6 +37,14 @@ class TestClientDetection:
         key, base, provider = _get_client()
         assert key is None
         assert provider == ""
+
+    def test_placeholder_key_is_ignored(self, monkeypatch):
+        monkeypatch.setenv("DEEPSEEK_API_KEY", "sk-your-deepseek-key-here")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        key, base, provider = _get_client()
+        assert key is None
+        assert provider == ""
+        assert get_configured_provider() == "local_rules"
 
     def test_override_key_prefers_deepseek(self, monkeypatch):
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
@@ -154,6 +163,7 @@ class TestAsyncDiagnose:
         assert all("severity" in s for s in result)
         assert all("confidence" in s for s in result)
         assert all("need_human_review" in s for s in result)
+        assert all(s["provider"] == "local_rules" for s in result)
 
     def test_no_key_uses_local_rule_diagnosis_with_issue_hint(self, monkeypatch):
         monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
@@ -187,6 +197,7 @@ class TestAsyncDiagnose:
         assert result[0]["severity"] == "high"
         assert result[0]["confidence"] == 85
         assert result[0]["need_human_review"] is False
+        assert result[0]["provider"] == "deepseek"
 
     @patch("backend.ai.diagnose.httpx.AsyncClient")
     def test_mock_llm_success_with_override_key(self, mock_client, monkeypatch):

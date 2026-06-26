@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from backend.ai.diagnose import ai_diagnose
+from backend.ai.diagnose import ai_diagnose, get_configured_provider
 from backend.analyzer.aggregator import aggregate
 from backend.models.response import ApiResponse
 from backend.services.cache import cache
@@ -48,6 +48,13 @@ def _make_error(repo_url: str, msg: str) -> dict:
         "analyzed_at": "",
         "_error": msg,
     }
+
+
+def _diagnosis_provider(items: list[dict] | None) -> str:
+    if not items:
+        return ""
+    first = items[0]
+    return str(first.get("provider", "")) if isinstance(first, dict) else ""
 
 
 def _run_sync_aggregate(
@@ -109,17 +116,35 @@ async def analyze_repo(req: AnalyzeRequest) -> ApiResponse[dict]:
             # Error results are stale — network may have recovered.
             # Invalidate so we re-analyze instead of repeating the same error.
             cache.invalidate(repo_url)
-        elif not req.skip_ai and not cached.get("ai_diagnosis") and cached.get("dimensions"):
+        else:
+            diagnosis = cached.get("ai_diagnosis") or []
+            cached_provider = _diagnosis_provider(diagnosis)
+            configured_provider = get_configured_provider(req.ai_api_key)
+            should_refresh_ai = (
+                not req.skip_ai
+                and bool(cached.get("dimensions"))
+                and (
+                    not diagnosis
+                    or (
+                        cached_provider == "local_rules"
+                        and configured_provider != "local_rules"
+                    )
+                )
+            )
+
+            if not should_refresh_ai:
+                return ApiResponse(code=0, message="success (cached)", data=cached)
+
             diagnosis = await ai_diagnose(
                 cached["dimensions"],
                 repo_url,
                 api_key_override=req.ai_api_key,
             )
             cached["ai_diagnosis"] = diagnosis
+            cached["ai_provider"] = _diagnosis_provider(diagnosis) or configured_provider
             cache.set(repo_url, cached)
-            return ApiResponse(code=0, message="success (cached + ai)", data=cached)
-        else:
-            return ApiResponse(code=0, message="success (cached)", data=cached)
+            message = "success (cached + ai refreshed)" if cached_provider else "success (cached + ai)"
+            return ApiResponse(code=0, message=message, data=cached)
 
     # 2. Sync mode
     if req.force_sync:

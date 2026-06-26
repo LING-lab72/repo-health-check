@@ -13,6 +13,7 @@ export interface AIDiagnosisItem {
   estimated_hours: number;
   confidence: number;
   need_human_review: boolean;
+  provider?: string;
 }
 
 export interface AnalysisData {
@@ -23,6 +24,7 @@ export interface AnalysisData {
   badge_description: string;
   dimensions: AnalysisDimension[];
   ai_diagnosis: AIDiagnosisItem[];
+  ai_provider?: string;
   analyzed_at: string;
 }
 

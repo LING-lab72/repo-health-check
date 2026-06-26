@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from backend.ai.diagnose import ai_diagnose
+from backend.ai.diagnose import ai_diagnose, get_configured_provider
 from backend.analyzer.code_quality.analyzer import CodeQualityAnalyzer
 from backend.analyzer.test_coverage.analyzer import TestCoverageAnalyzer
 from backend.analyzer.architecture.analyzer import ArchitectureAnalyzer
@@ -102,6 +102,15 @@ async def aggregate(
         )
     except Exception:
         ai_diagnosis_result = []
+    ai_provider = (
+        "skipped"
+        if skip_ai
+        else (
+            ai_diagnosis_result[0].get("provider", get_configured_provider(ai_api_key))
+            if ai_diagnosis_result
+            else get_configured_provider(ai_api_key)
+        )
+    )
 
     return {
         "repo_url": repo_url,
@@ -111,5 +120,6 @@ async def aggregate(
         "badge_description": badge["description"],
         "dimensions": dimensions,
         "ai_diagnosis": ai_diagnosis_result,
+        "ai_provider": ai_provider,
         "analyzed_at": datetime.now(timezone.utc).isoformat(),
     }
