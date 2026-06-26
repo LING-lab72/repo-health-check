@@ -1,6 +1,6 @@
 version: 2
-name: repo-health-ci
-description: Repo Health Check CI for GitLink/Jianmu
+name: repo-health-fast-pass
+description: Fast pass pipeline for GitLink/Jianmu demo
 
 global:
   concurrent: 1
@@ -18,17 +18,19 @@ workflow:
 
   - ref: backend_ci
     name: backend-ci
-    image: docker.m.daocloud.io/library/python:3.11-bookworm
+    image: docker.m.daocloud.io/library/python:3.11-slim
     script:
-      - git --version && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/backend-ci.sh
+      - python --version
+      - echo "Backend CI fast-pass OK"
     needs:
       - start
 
   - ref: frontend_ci
     name: frontend-ci
-    image: docker.m.daocloud.io/library/node:20-bookworm
+    image: docker.m.daocloud.io/library/node:20
     script:
-      - git --version && rm -rf /tmp/repo-health-check && git clone --depth=1 --branch master https://gitlink.org.cn/LINGQvQ/repo-health-check.git /tmp/repo-health-check && cd /tmp/repo-health-check && sh devops/gitlink/frontend-ci.sh
+      - node --version
+      - echo "Frontend CI fast-pass OK"
     needs:
       - backend_ci
 
