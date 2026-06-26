@@ -28,7 +28,8 @@ workflow:
     script:
       - set -eu
       - echo "SCRIPT_VERSION_20260626_FRONTEND_FAST_PASS"
-      - python --version
+      - node --version
+      - npm --version
       - echo "Frontend CI fast-pass OK"
     needs:
       - shell_0
