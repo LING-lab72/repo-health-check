@@ -1,41 +1,36 @@
 version: 2
-name: repo-health-fast-pass
-description: Fast pass pipeline for GitLink/Jianmu demo
-
+name: ci
+description: ""
 global:
   concurrent: 1
-
 trigger:
   webhook: gitlink@1.0.0
   event:
     - ref: push
       ruleset-operator: AND
-
 workflow:
   - ref: start
-    name: start
+    name: 开始
     task: start
-
   - ref: backend_ci
-    name: backend-ci
+    name: 后端CI
     image: docker.m.daocloud.io/library/python:3.11-slim
     script:
       - python --version
       - echo "Backend CI fast-pass OK"
     needs:
       - start
-
   - ref: frontend_ci
-    name: frontend-ci
+    name: 前端CI
     image: docker.m.daocloud.io/library/node:20
     script:
       - node --version
       - echo "Frontend CI fast-pass OK"
     needs:
       - backend_ci
-
   - ref: end
-    name: end
+    name: 结束
     task: end
     needs:
       - frontend_ci
+
