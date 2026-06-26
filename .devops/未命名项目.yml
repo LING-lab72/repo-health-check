@@ -14,7 +14,7 @@ workflow:
     task: start
   - ref: shell_0
     name: 后端代码检查 & 测试
-    image: python:3.13-slim
+    image: library/python
     script:
       - pip install --disable-pip-version-check -i
         https://mirrors.aliyun.com/pypi/simple/ --trusted-host
@@ -26,7 +26,7 @@ workflow:
       - start
   - ref: shell_1
     name: 前端检查 & 构建
-    image: node:18-slim
+    image: library/node
     script:
       - cd frontend
       - npm config set registry https://registry.npmmirror.com
