@@ -4,6 +4,9 @@ set -eu
 export SESSION_SECRET="${SESSION_SECRET:-gitlink-ci-session-secret}"
 export PIP_DEFAULT_TIMEOUT="${PIP_DEFAULT_TIMEOUT:-120}"
 export PIP_RETRIES="${PIP_RETRIES:-3}"
+export REPO_HEALTH_ROOT="${REPO_HEALTH_ROOT:-$(pwd)}"
+export REPO_HEALTH_TEST_ROOT="${REPO_HEALTH_TEST_ROOT:-$REPO_HEALTH_ROOT}"
+export PYTHONPATH="$REPO_HEALTH_ROOT:${PYTHONPATH:-}"
 
 install_deps() {
   index_url="$1"

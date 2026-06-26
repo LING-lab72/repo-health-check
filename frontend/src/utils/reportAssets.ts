@@ -57,24 +57,85 @@ export function estimatePeerPercentile(score: number): number {
 }
 
 export async function openPdfPrintDialog(reportHtmlUrl: string): Promise<void> {
-  const resp = await fetch(reportHtmlUrl);
-  if (!resp.ok) {
-    throw new Error('Failed to fetch report HTML');
+  void reportHtmlUrl;
+
+  const report = document.querySelector<HTMLElement>('.report-page');
+  if (!report) {
+    window.print();
+    return;
   }
-  const html = await resp.text();
-  const printable = html.replace(
-    '</body>',
-    '<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),250));</script></body>',
-  );
-  const blob = new Blob([printable], { type: 'text/html;charset=utf-8' });
-  const objectUrl = URL.createObjectURL(blob);
-  const printWindow = window.open(objectUrl, '_blank');
-  if (!printWindow) {
-    URL.revokeObjectURL(objectUrl);
-    throw new Error('Popup blocked');
+
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+
+  const reportTitle = window.location.pathname
+    .split('/')
+    .filter(Boolean)
+    .pop()
+    ?.replace(/[^\w.-]+/g, '-');
+  const fileName = `repo-health-report-${reportTitle || 'repository'}.pdf`;
+
+  document.body.classList.add('pdf-exporting');
+  await new Promise((resolve) => window.requestAnimationFrame(resolve));
+
+  try {
+    const canvas = await html2canvas(report, {
+      backgroundColor: '#080e1c',
+      scale: Math.min(2, window.devicePixelRatio || 1.5),
+      useCORS: true,
+      logging: false,
+      ignoreElements: (element) =>
+        element.classList.contains('report-actions') ||
+        element.classList.contains('btn-back') ||
+        element.classList.contains('dock-outer') ||
+        element.classList.contains('dock-panel'),
+    });
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const targetWidth = pageWidth - margin * 2;
+    const targetHeight = pageHeight - margin * 2;
+    const pxPerPage = Math.floor((targetHeight * canvas.width) / targetWidth);
+
+    let sourceY = 0;
+    let pageIndex = 0;
+    while (sourceY < canvas.height) {
+      const pageCanvas = document.createElement('canvas');
+      const sliceHeight = Math.min(pxPerPage, canvas.height - sourceY);
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const ctx = pageCanvas.getContext('2d');
+      if (!ctx) break;
+
+      ctx.fillStyle = '#080e1c';
+      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      ctx.drawImage(
+        canvas,
+        0,
+        sourceY,
+        canvas.width,
+        sliceHeight,
+        0,
+        0,
+        pageCanvas.width,
+        sliceHeight,
+      );
+
+      if (pageIndex > 0) pdf.addPage();
+      const imageHeight = (sliceHeight * targetWidth) / canvas.width;
+      pdf.addImage(pageCanvas.toDataURL('image/png'), 'PNG', margin, margin, targetWidth, imageHeight);
+      sourceY += sliceHeight;
+      pageIndex += 1;
+    }
+
+    pdf.save(fileName);
+  } finally {
+    document.body.classList.remove('pdf-exporting');
   }
-  printWindow.opener = null;
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
 }
 
 function drawRoundedRect(

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+import os
 from pathlib import Path
 from typing import Any
 
@@ -10,12 +11,14 @@ import yaml
 
 def _find_spec_path() -> Path:
     """Find sdd/health-spec.yaml relative to this file or project root."""
+    env_root = os.environ.get("REPO_HEALTH_TEST_ROOT") or os.environ.get("REPO_HEALTH_ROOT")
     candidates = [
+        Path(env_root) / "sdd" / "health-spec.yaml" if env_root else None,
         Path(__file__).resolve().parent.parent.parent.parent / "sdd" / "health-spec.yaml",
         Path.cwd() / "sdd" / "health-spec.yaml",
     ]
     for p in candidates:
-        if p.exists():
+        if p and p.exists():
             return p
     raise FileNotFoundError("health-spec.yaml not found. Expected at <project>/sdd/health-spec.yaml")
 

@@ -248,7 +248,7 @@ export default function ReportPage() {
   if (!data) return null;
 
   return (
-    <div className="page-container fade-in stagger-children">
+    <div className="page-container report-page fade-in stagger-children">
       <button className="btn-back" onClick={() => navigate('/')}>← 返回</button>
 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -260,7 +260,7 @@ export default function ReportPage() {
           <AnimatedCounter target={data.health_score} decimals={0} />
         </span>
         <span className="score-label">/100</span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <div className="report-actions" style={{ marginLeft: 'auto', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-sm" onClick={() => navigate(`/compare?repo_a=${encodeURIComponent(repoUrl)}`)}>
             与另一个仓库对比
           </button>

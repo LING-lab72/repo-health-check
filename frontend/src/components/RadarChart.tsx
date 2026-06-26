@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import * as echarts from 'echarts/core';
 import { RadarChart as ERadarChart } from 'echarts/charts';
-import { TooltipComponent, LegendComponent } from 'echarts/components';
+import { LegendComponent, TooltipComponent } from 'echarts/components';
 import { CanvasRenderer } from 'echarts/renderers';
 
 echarts.use([ERadarChart, TooltipComponent, LegendComponent, CanvasRenderer]);
@@ -26,7 +26,15 @@ export default function RadarChart({ dimensions }: Props) {
     chartInstance.current = chart;
 
     chart.setOption({
-      tooltip: { trigger: 'item', backgroundColor: 'rgba(15,23,42,0.8)', borderColor: 'rgba(99,102,241,0.3)', textStyle: { color: '#e2e8f0' } },
+      animationDuration: 900,
+      animationEasing: 'cubicOut',
+      animationDurationUpdate: 650,
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: 'rgba(15,23,42,0.86)',
+        borderColor: 'rgba(129,140,248,0.35)',
+        textStyle: { color: '#e2e8f0' },
+      },
       radar: {
         center: ['50%', '50%'],
         radius: '70%',
@@ -36,7 +44,15 @@ export default function RadarChart({ dimensions }: Props) {
         })),
         axisName: { color: '#94a3b8', fontSize: 12, fontWeight: 500 },
         splitArea: {
-          areaStyle: { color: ['rgba(99,102,241,0.03)', 'rgba(99,102,241,0.06)', 'rgba(99,102,241,0.09)', 'rgba(99,102,241,0.12)', 'rgba(99,102,241,0.15)'] },
+          areaStyle: {
+            color: [
+              'rgba(99,102,241,0.03)',
+              'rgba(99,102,241,0.06)',
+              'rgba(99,102,241,0.09)',
+              'rgba(99,102,241,0.12)',
+              'rgba(99,102,241,0.15)',
+            ],
+          },
         },
         splitLine: { lineStyle: { color: 'rgba(148,163,184,0.15)' } },
         axisLine: { lineStyle: { color: 'rgba(148,163,184,0.2)' } },
@@ -48,9 +64,13 @@ export default function RadarChart({ dimensions }: Props) {
             {
               value: dimensions.map((d) => d.score),
               name: '健康度',
-              areaStyle: { color: 'rgba(99,102,241,0.2)' },
-              lineStyle: { color: '#6366f1', width: 2 },
-              itemStyle: { color: '#6366f1', shadowColor: 'rgba(99,102,241,0.4)', shadowBlur: 8 },
+              areaStyle: { color: 'rgba(99,102,241,0.22)' },
+              lineStyle: { color: '#818cf8', width: 2 },
+              itemStyle: {
+                color: '#818cf8',
+                shadowColor: 'rgba(129,140,248,0.45)',
+                shadowBlur: 10,
+              },
               symbol: 'circle',
               symbolSize: 6,
             },
@@ -65,7 +85,6 @@ export default function RadarChart({ dimensions }: Props) {
     };
   }, [dimensions, hasData]);
 
-  // Resize on container or window resize
   useEffect(() => {
     const el = chartRef.current;
     if (!el || !hasData) return;
@@ -75,15 +94,18 @@ export default function RadarChart({ dimensions }: Props) {
   }, [hasData]);
 
   if (!hasData) {
-    return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>暂无数据</div>;
+    return <div className="chart-empty">暂无数据</div>;
   }
 
   return (
-    <div
-      ref={chartRef}
-      role="img"
-      aria-label="仓库健康度六维雷达图"
-      style={{ width: '100%', height: 400 }}
-    />
+    <div className="radar-shell">
+      <div className="radar-burst" aria-hidden="true" />
+      <div
+        ref={chartRef}
+        className="radar-chart-canvas"
+        role="img"
+        aria-label="仓库健康度六维雷达图"
+      />
+    </div>
   );
 }

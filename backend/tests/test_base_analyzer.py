@@ -1,4 +1,5 @@
 """Tests for BaseAnalyzer interface contract and real analyzer output."""
+import os
 from pathlib import Path
 
 import pytest
@@ -23,6 +24,12 @@ ALL_ANALYZERS = [
 
 def _find_repo_root() -> Path:
     """Find the project root even when pytest changes rootdir in CI."""
+    env_root = os.environ.get("REPO_HEALTH_TEST_ROOT")
+    if env_root:
+        root = Path(env_root).resolve()
+        if (root / "backend").is_dir() and (root / "sdd" / "health-spec.yaml").is_file():
+            return root
+
     for parent in Path(__file__).resolve().parents:
         if (parent / "backend").is_dir() and (parent / "frontend").is_dir():
             return parent
